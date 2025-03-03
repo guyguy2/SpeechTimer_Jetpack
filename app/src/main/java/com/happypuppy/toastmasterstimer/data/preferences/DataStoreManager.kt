@@ -1,0 +1,87 @@
+package com.happypuppy.toastmasterstimer.data.preferences
+
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+
+// DataStore for preferences
+val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+
+// Preference keys
+val EXAMPLE_COUNTER = intPreferencesKey("example_counter")
+val THEME_KEY = stringPreferencesKey("app_theme")
+val VIBRATE_KEY = booleanPreferencesKey("vibrate_enabled")
+val SOUND_KEY = booleanPreferencesKey("sound_enabled")
+
+// Theme options
+enum class AppTheme(val value: String) {
+    SYSTEM_DEFAULT("system_default"),
+    LIGHT("light"),
+    DARK("dark");
+
+    companion object {
+        fun fromString(value: String): AppTheme {
+            return entries.find { it.value == value } ?: SYSTEM_DEFAULT
+        }
+    }
+}
+
+class DataStoreManager(private val context: Context) {
+
+    // Example counter for backward compatibility
+    val exampleCounterFlow: Flow<Int> = context.dataStore.data
+        .map { preferences ->
+            preferences[EXAMPLE_COUNTER] ?: 0
+        }
+
+    suspend fun incrementCounter() {
+        context.dataStore.edit { settings ->
+            val currentCounterValue = settings[EXAMPLE_COUNTER] ?: 0
+            settings[EXAMPLE_COUNTER] = currentCounterValue + 1
+        }
+    }
+
+    // Theme preference
+    val themeFlow: Flow<AppTheme> = context.dataStore.data
+        .map { preferences ->
+            val themeString = preferences[THEME_KEY] ?: AppTheme.SYSTEM_DEFAULT.value
+            AppTheme.fromString(themeString)
+        }
+
+    suspend fun setTheme(theme: AppTheme) {
+        context.dataStore.edit { settings ->
+            settings[THEME_KEY] = theme.value
+        }
+    }
+
+    // Vibrate preference (default: true)
+    val vibrateEnabledFlow: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[VIBRATE_KEY] != false
+        }
+
+    suspend fun setVibrateEnabled(enabled: Boolean) {
+        context.dataStore.edit { settings ->
+            settings[VIBRATE_KEY] = enabled
+        }
+    }
+
+    // Sound preference (default: false)
+    val soundEnabledFlow: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[SOUND_KEY] ?: false
+        }
+
+    suspend fun setSoundEnabled(enabled: Boolean) {
+        context.dataStore.edit { settings ->
+            settings[SOUND_KEY] = enabled
+        }
+    }
+}
