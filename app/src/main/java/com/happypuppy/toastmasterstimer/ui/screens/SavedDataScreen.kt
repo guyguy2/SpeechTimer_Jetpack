@@ -74,11 +74,6 @@ fun SavedDataScreen(
     val navigationItems = listOf("Speeches", "Custom", "Saved Data")
     var selectedItem = remember { mutableIntStateOf(2) } // Set to 2 for "Saved Data"
 
-    // Load speakers when the screen is displayed
-    LaunchedEffect(Unit) {
-        viewModel.getAllSpeakers()
-    }
-
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {

@@ -11,6 +11,7 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.RoomDatabase
 import com.happypuppy.toastmasterstimer.data.repository.DateConverters
+import kotlinx.coroutines.flow.Flow
 import java.util.Date
 
 @Entity(tableName = "speakers")
@@ -25,7 +26,7 @@ data class Speaker(
 @Dao
 interface SpeakerDao {
     @Query("SELECT * FROM speakers ORDER BY created_at DESC")
-    suspend fun getAllSpeakers(): List<Speaker>
+    fun getAllSpeakers(): Flow<List<Speaker>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSpeaker(speaker: Speaker)
@@ -44,7 +45,7 @@ abstract class AppDatabase : RoomDatabase() {
 }
 
 class SpeakerRepository(private val speakerDao: SpeakerDao) {
-    suspend fun getAllSpeakers() = speakerDao.getAllSpeakers()
+    fun getAllSpeakers(): Flow<List<Speaker>> = speakerDao.getAllSpeakers()
     suspend fun insertSpeaker(speaker: Speaker) = speakerDao.insertSpeaker(speaker)
     suspend fun deleteSpeaker(speaker: Speaker) = speakerDao.deleteSpeaker(speaker)
     suspend fun deleteAllSpeakers() = speakerDao.deleteAllSpeakers()
