@@ -2,7 +2,7 @@ package com.happypuppy.toastmasterstimer.ui.screens
 
 import android.media.RingtoneManager
 import android.os.VibrationEffect
-import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -58,7 +58,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -166,7 +165,7 @@ fun TimerScreen(
                 if (newBackgroundColor != previousBackgroundColor && newBackgroundColor != Color.Transparent) {
                     // Play haptic feedback if enabled
                     if (vibrationEnabled) {
-                        val vibrator = ContextCompat.getSystemService(context, Vibrator::class.java)
+                        val vibrator = context.getSystemService(VibratorManager::class.java)?.defaultVibrator
                         if (newBackgroundColor == Color.Red) {
                             vibrator?.vibrate(
                                 VibrationEffect.createWaveform(longArrayOf(0, 300, 100, 300), -1))
