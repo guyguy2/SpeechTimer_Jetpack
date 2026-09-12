@@ -43,7 +43,7 @@ enum class SortOption(val displayName: String) {
 @Composable
 fun SavedDataScreen(
     navController: NavHostController,
-    viewModel: ViewModel = koinViewModel()
+    viewModel: SpeechTimerViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val speakers = uiState.speakers

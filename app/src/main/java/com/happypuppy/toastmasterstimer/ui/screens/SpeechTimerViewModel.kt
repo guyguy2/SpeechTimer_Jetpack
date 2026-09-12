@@ -14,7 +14,7 @@ data class MainScreenUiState(
     val error: String? = null
 )
 
-class ViewModel(private val repository: SpeakerRepository) : ViewModel() {
+class SpeechTimerViewModel(private val repository: SpeakerRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(MainScreenUiState())
     val uiState: StateFlow<MainScreenUiState> get() = _uiState
 
