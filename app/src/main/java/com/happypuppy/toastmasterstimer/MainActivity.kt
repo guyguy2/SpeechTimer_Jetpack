@@ -43,7 +43,7 @@ import com.happypuppy.toastmasterstimer.ui.screens.SettingsScreen
 import com.happypuppy.toastmasterstimer.ui.screens.SpeechTimePicker
 import com.happypuppy.toastmasterstimer.ui.screens.SplashScreen
 import com.happypuppy.toastmasterstimer.ui.screens.TimerScreen
-import com.happypuppy.toastmasterstimer.ui.screens.ViewModel
+import com.happypuppy.toastmasterstimer.ui.screens.SpeechTimerViewModel
 import com.happypuppy.toastmasterstimer.ui.theme.SimpleSpeechTimerTheme
 import org.koin.androidx.compose.koinViewModel
 
@@ -59,7 +59,7 @@ class MainActivity : ComponentActivity() {
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
 
         setContent {
-            val koinViewModel = koinViewModel<ViewModel>()
+            val koinViewModel = koinViewModel<SpeechTimerViewModel>()
             SimpleSpeechTimerTheme {
                 val navController = rememberNavController()
                 NavGraph(navController = navController, koinViewModel = koinViewModel)
@@ -69,7 +69,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun NavGraph(navController: NavHostController, koinViewModel: ViewModel) {
+fun NavGraph(navController: NavHostController, koinViewModel: SpeechTimerViewModel) {
     NavHost(navController = navController, startDestination = Screen.Splash.route) {
         composable(Screen.Splash.route) {
             SplashScreen(navController)
@@ -121,7 +121,7 @@ fun NavGraph(navController: NavHostController, koinViewModel: ViewModel) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(modifier: Modifier = Modifier, navController: NavHostController, viewModel: ViewModel) {
+fun MainScreen(modifier: Modifier = Modifier, navController: NavHostController, viewModel: SpeechTimerViewModel) {
     var selectedItem = remember { mutableIntStateOf(0) }
     val navigationItems = listOf("Speeches", "Custom", "Saved Data")
     val snackbarHostState = remember { SnackbarHostState() }

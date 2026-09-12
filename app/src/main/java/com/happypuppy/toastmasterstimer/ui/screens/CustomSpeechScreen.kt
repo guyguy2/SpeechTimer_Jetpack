@@ -19,7 +19,7 @@ import com.happypuppy.toastmasterstimer.ui.components.MinutePicker
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SpeechTimePicker(navController: NavHostController, viewModel: ViewModel) {
+fun SpeechTimePicker(navController: NavHostController, viewModel: SpeechTimerViewModel) {
     var startMinutes by remember { mutableIntStateOf(8) }
     var endMinutes by remember { mutableIntStateOf(10) }
     val navigationItems = listOf("Speeches", "Custom", "Saved Data")

@@ -81,7 +81,7 @@ fun TimerScreen(
     title: String = "Timer Screen",
     minMinutes: Int = 1,
     maxMinutes: Int = 2,
-    viewModel: ViewModel = koinViewModel() // Get ViewModel using Koin
+    viewModel: SpeechTimerViewModel = koinViewModel() // Get ViewModel using Koin
 ) {
     // Timer state
     var ticks by remember { mutableIntStateOf(0) }
