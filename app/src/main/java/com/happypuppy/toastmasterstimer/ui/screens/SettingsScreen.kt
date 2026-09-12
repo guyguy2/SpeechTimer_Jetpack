@@ -5,7 +5,7 @@ import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.VibrationEffect
-import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -51,7 +51,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat.getSystemService
 import androidx.navigation.NavHostController
 import com.happypuppy.toastmasterstimer.R
 import com.happypuppy.toastmasterstimer.data.preferences.AppTheme
@@ -212,7 +211,7 @@ fun VibrationSetting(dataStoreManager: DataStoreManager) {
 
                 // Demonstration vibration when enabled
                 if (enabled) {
-                    val vibrator = getSystemService(context, Vibrator::class.java)
+                    val vibrator = context.getSystemService(VibratorManager::class.java)?.defaultVibrator
                     vibrator?.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
                 }
             }
