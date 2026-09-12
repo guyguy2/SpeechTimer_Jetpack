@@ -68,6 +68,8 @@ import com.happypuppy.toastmasterstimer.data.preferences.DataStoreManager
 import com.happypuppy.toastmasterstimer.navigation.Screen
 import com.happypuppy.toastmasterstimer.ui.components.InputDialog
 import com.happypuppy.toastmasterstimer.ui.components.TimerProgressBar
+import com.happypuppy.toastmasterstimer.util.TimerPhase
+import com.happypuppy.toastmasterstimer.util.TimerThresholds
 import com.happypuppy.toastmasterstimer.util.formatTime
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -90,11 +92,12 @@ fun TimerScreen(
     var isTimeVisible by remember { mutableStateOf(true) }
     var isUIVisible by remember { mutableStateOf(true) }
 
-    // Constants for color thresholds (unchanged)
-    val greenThreshold = minMinutes * 60 // Convert minutes to seconds
-    val redThreshold = maxMinutes * 60 // Convert minutes to seconds
-    val yellowThreshold = (greenThreshold + redThreshold) / 2 // Middle point
-    val maxDuration = redThreshold + 2 // Maximum timer duration in seconds
+    // Colour thresholds in seconds, derived from the speech's min/max minutes
+    val thresholds = remember(minMinutes, maxMinutes) { TimerThresholds(minMinutes, maxMinutes) }
+    val greenThreshold = thresholds.greenSeconds
+    val redThreshold = thresholds.redSeconds
+    val yellowThreshold = thresholds.yellowSeconds
+    val maxDuration = thresholds.maxDurationSeconds
 
     // Extract speech type from title
     val speechType = remember {
@@ -152,11 +155,11 @@ fun TimerScreen(
                 delay(1000)
                 ticks++
 
-                val newBackgroundColor = when {
-                    ticks < greenThreshold -> Color.Transparent
-                    ticks < yellowThreshold -> Color(0xFF006400)
-                    ticks < redThreshold -> Color(0xFFFFDC28)
-                    else -> Color.Red
+                val newBackgroundColor = when (thresholds.phaseAt(ticks)) {
+                    TimerPhase.BEFORE_GREEN -> Color.Transparent
+                    TimerPhase.GREEN -> Color(0xFF006400)
+                    TimerPhase.YELLOW -> Color(0xFFFFDC28)
+                    TimerPhase.RED -> Color.Red
                 }
 
                 // Check if background color has changed
