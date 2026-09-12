@@ -80,4 +80,27 @@ class SpeechTimerViewModelTest {
         assertFalse(state.isLoading)
         assertTrue(state.speakers.isEmpty())
     }
+
+    @Test
+    fun insertFailure_surfacesErrorInsteadOfCrashing() = runTest {
+        val dao = FakeSpeakerDao().apply { insertError = IOException("readonly database") }
+        val vm = viewModel(dao)
+
+        vm.saveSpeaker(name = "Dan", speechType = "SPEECH", duration = "06:00")
+
+        assertEquals("readonly database", vm.uiState.value.error)
+    }
+
+    @Test
+    fun error_isClearedByNextSuccessfulLoad() = runTest {
+        val dao = FakeSpeakerDao().apply { insertError = IOException("readonly database") }
+        val vm = viewModel(dao)
+        vm.saveSpeaker(name = "Dan", speechType = "SPEECH", duration = "06:00")
+        assertEquals("readonly database", vm.uiState.value.error)
+
+        vm.saveSpeaker(name = "Eve", speechType = "SPEECH", duration = "06:30")
+
+        assertNull(vm.uiState.value.error)
+        assertEquals(listOf("Eve"), vm.uiState.value.speakers.map { it.name })
+    }
 }
