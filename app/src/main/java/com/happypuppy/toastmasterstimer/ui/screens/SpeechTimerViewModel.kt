@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.happypuppy.toastmasterstimer.data.database.repository.Speaker
 import com.happypuppy.toastmasterstimer.data.database.repository.SpeakerRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
@@ -27,13 +28,14 @@ class SpeechTimerViewModel(private val repository: SpeakerRepository) : ViewMode
                     _uiState.update { it.copy(error = e.message, isLoading = false) }
                 }
                 .collect { speakers ->
-                    _uiState.update { it.copy(speakers = speakers, isLoading = false) }
+                    // A successful load supersedes any earlier error
+                    _uiState.update { it.copy(speakers = speakers, isLoading = false, error = null) }
                 }
         }
     }
 
     fun saveSpeaker(name: String, speechType: String, duration: String) {
-        viewModelScope.launch {
+        runMutation {
             repository.insertSpeaker(
                 Speaker(
                     name = name,
@@ -45,14 +47,23 @@ class SpeechTimerViewModel(private val repository: SpeakerRepository) : ViewMode
     }
 
     fun deleteSpeaker(speaker: Speaker) {
-        viewModelScope.launch {
-            repository.deleteSpeaker(speaker)
-        }
+        runMutation { repository.deleteSpeaker(speaker) }
     }
 
     fun deleteAllSpeakers() {
+        runMutation { repository.deleteAllSpeakers() }
+    }
+
+    /** Runs a database write, surfacing failures in [uiState] instead of crashing the app. */
+    private fun runMutation(block: suspend () -> Unit) {
         viewModelScope.launch {
-            repository.deleteAllSpeakers()
+            try {
+                block()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = e.message) }
+            }
         }
     }
 }
