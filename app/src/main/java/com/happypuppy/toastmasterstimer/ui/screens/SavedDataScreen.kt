@@ -1,6 +1,5 @@
 package com.happypuppy.toastmasterstimer.ui.screens
 
-import android.R.id.shareText
 import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.layout.*
@@ -27,7 +26,6 @@ import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.text.format
 
 // Define sorting options
 enum class SortOption(val displayName: String) {
@@ -467,55 +465,3 @@ fun shareSpeakerData(context: Context, speakers: List<Speaker>) {
 
     context.startActivity(Intent.createChooser(sendIntent, "Share All Speech Data"))
 }
-
-
-// Function to share all speakers' data as a formatted ASCII table
-//fun shareSpeakerData(context: Context, speakers: List<Speaker>) {
-//    val dateFormat = SimpleDateFormat("MM/dd/yyyy HH:mm", Locale.getDefault())
-//
-//    // Create consistent table structure with StringBuilder for better control
-//    val sb = StringBuilder()
-//
-//    // Add header
-//    sb.append("This is a record of all timed speeches from Simple Speech Timer App:\n\n")
-//
-//    // Define table formatting consistently
-//    val separator = "+----------------------+---------------------------+------------+---------------------+"
-//    val headerFormat = "| %-20s | %-25s | %-10s | %-19s |"
-//    val rowFormat = "| %-20s | %-25s | %-10s | %-19s |"
-//
-//    // Add table structure
-//    sb.append(separator).append("\n")
-//    sb.append(String.format(headerFormat, "Name", "Speech Type", "Duration", "Date & Time")).append("\n")
-//    sb.append(separator).append("\n")
-//
-//    // Add each row with consistent formatting
-//    speakers.forEach { speaker ->
-//        val formattedDate = dateFormat.format(speaker.createdAt)
-//        sb.append(String.format(
-//            rowFormat,
-//            speaker.name.take(20),
-//            speaker.speechType.take(25),
-//            speaker.duration,
-//            formattedDate
-//        )).append("\n")
-//    }
-//
-//    sb.append(separator).append("\n\n")
-//
-//    // Add footer
-//    val currentTimestamp = dateFormat.format(Date())
-//    sb.append("Created by Simple Speech Timer App for Android\n")
-//    sb.append("Generated on: $currentTimestamp\n")
-//    sb.append("Total Speeches: ${speakers.size}")
-//
-//    val shareText = sb.toString()
-//
-//    val sendIntent = Intent().apply {
-//        action = Intent.ACTION_SEND
-//        putExtra(Intent.EXTRA_TEXT, shareText)
-//        type = "text/plain"
-//    }
-//
-//    context.startActivity(Intent.createChooser(sendIntent, "Share All Speech Data"))
-//}

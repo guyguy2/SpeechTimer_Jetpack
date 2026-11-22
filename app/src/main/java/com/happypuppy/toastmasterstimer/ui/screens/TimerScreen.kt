@@ -38,7 +38,6 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -58,9 +57,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavHostController
 import com.happypuppy.toastmasterstimer.R
 import com.happypuppy.toastmasterstimer.data.preferences.DataStoreManager
@@ -200,21 +196,6 @@ fun TimerScreen(
         }
     }
 
-    // Lifecycle management (unchanged)
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_PAUSE) {
-                // Timer can be paused here if needed
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -225,14 +206,10 @@ fun TimerScreen(
                     }
                 },
                 actions = {
-                    var isClicked by remember { mutableStateOf(false) }
-                    IconButton(onClick = {
-                        isClicked = !isClicked
-                        isUIVisible = !isClicked // Toggle UI visibility based on isClicked state
-                    }) {
+                    IconButton(onClick = { isUIVisible = !isUIVisible }) {
                         Icon(
                             painter = painterResource(
-                                if (isClicked) R.drawable.visibility_off_24px
+                                if (!isUIVisible) R.drawable.visibility_off_24px
                                 else R.drawable.visibility_24px
                             ),
                             contentDescription = "visibility"
@@ -243,7 +220,6 @@ fun TimerScreen(
         }
     ) { innerPadding ->
         var showDialog by remember { mutableStateOf(false) }
-        var enteredText by remember { mutableStateOf("") }
         val snackbarHostState = remember { SnackbarHostState() }
         val scope = rememberCoroutineScope()
 
@@ -436,8 +412,7 @@ fun TimerScreen(
                     }
                     showDialog = false
                 },
-                title = "Save Time",
-                initialText = enteredText
+                title = "Save Time"
             )
         }
     }

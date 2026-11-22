@@ -7,7 +7,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -19,14 +18,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.navigation.NavHostController
@@ -48,10 +44,6 @@ import com.happypuppy.toastmasterstimer.ui.theme.SimpleSpeechTimerTheme
 import org.koin.androidx.compose.koinViewModel
 
 class MainActivity : ComponentActivity() {
-    companion object {
-        private const val TAG = "MainActivity"
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -77,9 +69,8 @@ fun NavGraph(navController: NavHostController, koinViewModel: SpeechTimerViewMod
         composable(Screen.Main.route) {
             Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                 MainScreen(
-                    modifier = Modifier.padding(innerPadding),
                     navController = navController,
-                    viewModel = koinViewModel
+                    modifier = Modifier.padding(innerPadding)
                 )
             }
         }
@@ -108,8 +99,7 @@ fun NavGraph(navController: NavHostController, koinViewModel: SpeechTimerViewMod
         }
         composable(Screen.CustomSpeechScreen.route) {
             SpeechTimePicker(
-                navController = navController,
-                viewModel = koinViewModel
+                navController = navController
             )
         }
         composable(SavedDataScreen.route) {
@@ -121,14 +111,12 @@ fun NavGraph(navController: NavHostController, koinViewModel: SpeechTimerViewMod
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(modifier: Modifier = Modifier, navController: NavHostController, viewModel: SpeechTimerViewModel) {
-    var selectedItem = remember { mutableIntStateOf(0) }
+fun MainScreen(navController: NavHostController, modifier: Modifier = Modifier) {
+    val selectedItem = remember { mutableIntStateOf(0) }
     val navigationItems = listOf("Speeches", "Custom", "Saved Data")
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = { Text(text = "Simple Speech Timer") },
@@ -172,27 +160,14 @@ fun MainScreen(modifier: Modifier = Modifier, navController: NavHostController, 
                                 navController.navigate(Screen.CustomSpeechScreen.route)
                             if (selectedItem.intValue == 2)
                                 navController.navigate(SavedDataScreen.route)
-//                            scope.launch {
-//                                snackbarHostState.showSnackbar(
-//                                    message = "Switched to ${navigationItems[index]}",
-//                                    duration = SnackbarDuration.Short
-//                                )
-//                            }
                         }
                     )
                 }
             }
         }
     ) { innerPadding ->
-        // Screen content goes here
-        /*     Text(
-                 modifier = Modifier.padding(innerPadding),
-                 text = "Current screen: ${navigationItems[selectedItem.intValue]}"
-             )*/
-
         Column(
             modifier = Modifier
-                .fillMaxHeight()
                 .fillMaxSize()
                 .padding(innerPadding),
             verticalArrangement = Arrangement.SpaceEvenly
@@ -203,7 +178,6 @@ fun MainScreen(modifier: Modifier = Modifier, navController: NavHostController, 
             SpeechTimerButton(text = "SPEECH (5 TO 7 MIN)", navController)
         }
     }
-
 }
 
 

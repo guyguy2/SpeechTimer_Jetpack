@@ -1,9 +1,9 @@
-Simple Speech Timer for Toastmasers 
+Simple Speech Timer for Toastmasters
 - Jetpack Compose
 - Kotlin
 - Room
 - DataStore for preferences
-- koin for DI
+- Koin for DI
 
 ToDo
-- support landcape
+- support landscape
