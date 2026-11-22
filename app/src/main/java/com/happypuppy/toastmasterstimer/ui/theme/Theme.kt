@@ -33,17 +33,12 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun SimpleSpeechTimerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    // Get DataStoreManager through Koin injection
     val dataStoreManager = koinInject<DataStoreManager>()
-
-    // Collect theme preference from DataStore
     val themePreference by dataStoreManager.themeFlow.collectAsState(initial = AppTheme.SYSTEM_DEFAULT)
 
-    // Determine if dark theme should be used based on the saved preference
     val useDarkTheme = when (themePreference) {
         AppTheme.SYSTEM_DEFAULT -> darkTheme
         AppTheme.LIGHT -> false
@@ -59,16 +54,13 @@ fun SimpleSpeechTimerTheme(
         else -> LightColorScheme
     }
 
-    // Apply the theme to the system bars
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
-            val window = (view.context as Activity).window
-
-            // Set the system bar appearance (light or dark icons)
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !useDarkTheme
-            // Enable drawing behind the status bar
-            WindowCompat.setDecorFitsSystemWindows(window, false)
+            val window = (view.context as? Activity)?.window ?: return@SideEffect
+            val insetsController = WindowCompat.getInsetsController(window, view)
+            insetsController.isAppearanceLightStatusBars = !useDarkTheme
+            insetsController.isAppearanceLightNavigationBars = !useDarkTheme
         }
     }
 

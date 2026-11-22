@@ -28,6 +28,7 @@
 # ---------------------------------------------------------------------------
 -keep class com.happypuppy.toastmasterstimer.di.** { *; }
 -keep class com.happypuppy.toastmasterstimer.ui.screens.SpeechTimerViewModel { *; }
+-keep class com.happypuppy.toastmasterstimer.ui.screens.TimerViewModel { *; }
 -keepclassmembers class * extends androidx.lifecycle.ViewModel {
     <init>(...);
 }

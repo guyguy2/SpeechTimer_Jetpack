@@ -5,6 +5,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -21,6 +22,7 @@ fun InputDialog(
     initialText: String = ""
 ) {
     var text by remember { mutableStateOf(initialText) }
+    val trimmed = text.trim()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -35,16 +37,21 @@ fun InputDialog(
                     keyboardType = KeyboardType.Text,
                     capitalization = KeyboardCapitalization.Words
                 )
-
             )
         },
         confirmButton = {
-            Button(onClick = { onConfirm(text); onDismiss() }) {
-                Text("Confirm")
+            Button(
+                onClick = {
+                    onConfirm(trimmed)
+                    onDismiss()
+                },
+                enabled = trimmed.isNotEmpty()
+            ) {
+                Text("Save")
             }
         },
         dismissButton = {
-            Button(onClick = onDismiss) {
+            TextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
         }

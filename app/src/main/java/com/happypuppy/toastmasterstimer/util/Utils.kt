@@ -1,48 +1,32 @@
 package com.happypuppy.toastmasterstimer.util
 
-import android.annotation.SuppressLint
-import java.util.concurrent.TimeUnit
 import android.content.Context
 import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
 import android.os.Build
+import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 /**
- * Utility class to get app version information without direct BuildConfig dependency
+ * Utility class to get app version information without direct BuildConfig dependency.
  */
 object AppVersionInfo {
-    /**
-     * Get the version name of the app
-     * @param context Application context
-     * @return Version name as String
-     */
     fun getVersionName(context: Context): String {
         return try {
-            val packageInfo = getPackageInfo(context)
-            packageInfo.versionName
+            getPackageInfo(context).versionName?.takeIf { it.isNotBlank() } ?: "1.0.0"
         } catch (_: Exception) {
-            "1.0.0" // Fallback version
-        }.toString()
-    }
-
-    /**
-     * Get the version code of the app
-     * @param context Application context
-     * @return Version code as String
-     */
-    fun getVersionCode(context: Context): String {
-        return try {
-            val packageInfo = getPackageInfo(context)
-            packageInfo.longVersionCode.toString()
-        } catch (_: Exception) {
-            "1" // Fallback version code
+            "1.0.0"
         }
     }
 
-    /**
-     * Get full version information as a formatted string
-     * @param context Application context
-     * @return Formatted version string: "versionName (versionCode)"
-     */
+    fun getVersionCode(context: Context): String {
+        return try {
+            getPackageInfo(context).longVersionCode.toString()
+        } catch (_: Exception) {
+            "1"
+        }
+    }
+
     fun getFullVersionInfo(context: Context): String {
         return "${getVersionName(context)} (${getVersionCode(context)})"
     }
@@ -51,7 +35,7 @@ object AppVersionInfo {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             context.packageManager.getPackageInfo(
                 context.packageName,
-                android.content.pm.PackageManager.PackageInfoFlags.of(0)
+                PackageManager.PackageInfoFlags.of(0)
             )
         } else {
             @Suppress("DEPRECATION")
@@ -60,9 +44,9 @@ object AppVersionInfo {
     }
 }
 
-@SuppressLint("DefaultLocale")
 fun formatTime(seconds: Int): String {
-    val minutes = TimeUnit.SECONDS.toMinutes(seconds.toLong())
-    val remainingSeconds = seconds - TimeUnit.MINUTES.toSeconds(minutes)
-    return String.format("%02d:%02d", minutes, remainingSeconds)
+    val safeSeconds = seconds.coerceAtLeast(0)
+    val minutes = TimeUnit.SECONDS.toMinutes(safeSeconds.toLong())
+    val remainingSeconds = safeSeconds - TimeUnit.MINUTES.toSeconds(minutes)
+    return String.format(Locale.US, "%02d:%02d", minutes, remainingSeconds)
 }
