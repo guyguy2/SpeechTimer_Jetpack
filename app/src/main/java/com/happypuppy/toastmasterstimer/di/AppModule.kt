@@ -6,7 +6,7 @@ import com.happypuppy.toastmasterstimer.data.database.repository.SpeakerReposito
 import com.happypuppy.toastmasterstimer.data.preferences.DataStoreManager
 import com.happypuppy.toastmasterstimer.ui.screens.SpeechTimerViewModel
 import org.koin.android.ext.koin.androidContext
-import org.koin.androidx.viewmodel.dsl.viewModelOf
+import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 
 // Create a Koin module
