@@ -24,7 +24,7 @@
 -keep class com.happypuppy.toastmasterstimer.data.repository.DateConverters { *; }
 
 # ---------------------------------------------------------------------------
-# Koin 3.x
+# Koin 4.x
 # ---------------------------------------------------------------------------
 -keep class com.happypuppy.toastmasterstimer.di.** { *; }
 -keep class com.happypuppy.toastmasterstimer.ui.screens.SpeechTimerViewModel { *; }
@@ -48,8 +48,6 @@
 -dontwarn androidx.datastore.**
 
 # ---------------------------------------------------------------------------
-# AndroidX Navigation Compose & Compose
+# AndroidX Navigation Compose
 # ---------------------------------------------------------------------------
 -keepnames class androidx.navigation.** { *; }
--dontwarn androidx.navigation.**
--dontwarn androidx.compose.**

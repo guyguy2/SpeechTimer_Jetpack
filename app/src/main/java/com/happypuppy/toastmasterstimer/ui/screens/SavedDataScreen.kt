@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -292,8 +293,9 @@ fun SpeakerCard(
     onShareClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
-    val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
-    val formattedDate = dateFormat.format(speaker.createdAt)
+    val locale = LocalLocale.current.platformLocale
+    val dateFormat = remember(locale) { SimpleDateFormat("MMM dd, yyyy HH:mm", locale) }
+    val formattedDate = remember(speaker.createdAt, dateFormat) { dateFormat.format(speaker.createdAt) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),

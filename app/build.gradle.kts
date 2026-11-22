@@ -74,11 +74,6 @@ android {
         compose = true
     }
 
-    lint {
-        // Known false positive on AGP 9.x for MainActivity extending ComponentActivity.
-        disable += "Instantiatable"
-    }
-
     testOptions {
         unitTests {
             isReturnDefaultValues = true
@@ -125,17 +120,16 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.androidx.material.icons.core)
 
     implementation(libs.room.runtime)
     implementation(libs.androidx.room.ktx)
 
     implementation(project.dependencies.platform(libs.koin.bom))
-    implementation(libs.koin.core)
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
     ksp(libs.room.compiler)
 
-    implementation(libs.androidx.datastore)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.navigation.compose)
 
