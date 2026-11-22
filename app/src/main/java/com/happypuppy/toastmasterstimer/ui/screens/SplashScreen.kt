@@ -37,10 +37,6 @@ fun SplashScreen(navController: NavHostController) {
     val scale = remember { Animatable(0f) }
     val textAlpha = remember { Animatable(0f) }
 
-    // Background color gradient from primary to surface
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val surfaceColor = MaterialTheme.colorScheme.surface
-
     // Launch effect for animations
     LaunchedEffect(key1 = true) {
         // Animate logo scale with overshoot for a bounce effect

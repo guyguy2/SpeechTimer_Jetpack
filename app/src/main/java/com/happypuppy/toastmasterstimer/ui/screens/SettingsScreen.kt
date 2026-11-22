@@ -1,6 +1,5 @@
 package com.happypuppy.toastmasterstimer.ui.screens
 
-//import com.happypuppy.toastmasterstimer.BuildConfig
 import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
@@ -168,7 +167,6 @@ fun ThemeSelector(dataStoreManager: DataStoreManager) {
 @Composable
 fun ThemeOption(
     title: String,
-//    icon: androidx.compose.ui.graphics.vector.ImageVector,
     icon: Painter,
     selected: Boolean,
     onClick: () -> Unit

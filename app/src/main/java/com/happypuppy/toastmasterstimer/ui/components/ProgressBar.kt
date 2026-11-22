@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -21,11 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.happypuppy.toastmasterstimer.R
 import kotlin.math.roundToInt
 
@@ -148,32 +143,11 @@ fun TimerProgressBar(
                 // We use a custom layout to precisely position each label
                 Layout(
                     content = {
-                        // Start label
-//                        Text(
-//                            text = "Start",
-//                            style = TextStyle(
-//                                color = Color.White,
-//                                fontSize = 10.sp,
-//                                fontWeight = FontWeight.Normal,
-//                                textAlign = TextAlign.Center
-//                            )
-//                        )
                         Icon(
                             painter = painterResource(R.drawable.start_24px),
                             modifier = Modifier.size(12.dp),
                             contentDescription = "start"
                         )
-
-                        // G label
-//                        Text(
-//                            text = "G",
-//                            style = TextStyle(
-//                                color = Color(0xFF00FF00),
-//                                fontSize = 10.sp,
-//                                fontWeight = FontWeight.Bold,
-//                                textAlign = TextAlign.Center
-//                            )
-//                        )
 
                         Box(
                             modifier = Modifier
@@ -181,32 +155,12 @@ fun TimerProgressBar(
                                 .background(Color(0xFF00FF00), CircleShape)
                         )
 
-                        // Y label
-//                        Text(
-//                            text = "Y",
-//                            style = TextStyle(
-//                                color = Color(0xFFFFFF00),
-//                                fontSize = 10.sp,
-//                                fontWeight = FontWeight.Bold,
-//                                textAlign = TextAlign.Center
-//                            )
-//                        )
                         Box(
                             modifier = Modifier
                                 .size(10.dp)
                                 .background(Color(0xFFFFFF00), CircleShape)
                         )
 
-                        // R label
-//                        Text(
-//                            text = "R",
-//                            style = TextStyle(
-//                                color = Color(0xFFFF4444),
-//                                fontSize = 10.sp,
-//                                fontWeight = FontWeight.Bold,
-//                                textAlign = TextAlign.Center
-//                            )
-//                        )
                         Box(
                             modifier = Modifier
                                 .size(10.dp)
@@ -218,7 +172,6 @@ fun TimerProgressBar(
                     val placeables = measurables.map { it.measure(constraints) }
 
                     // Calculate the positions for each label
-                    val startLabelWidth = placeables[0].width
                     val gLabelWidth = placeables[1].width
                     val yLabelWidth = placeables[2].width
                     val rLabelWidth = placeables[3].width

@@ -134,7 +134,6 @@ dependencies {
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
     ksp(libs.room.compiler)
-//    implementation(libs.koin.compose.viewmodel)
 
     implementation(libs.androidx.datastore)
     implementation(libs.androidx.datastore.preferences)

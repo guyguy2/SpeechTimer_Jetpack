@@ -19,7 +19,7 @@ import com.happypuppy.toastmasterstimer.ui.components.MinutePicker
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SpeechTimePicker(navController: NavHostController, viewModel: SpeechTimerViewModel) {
+fun SpeechTimePicker(navController: NavHostController) {
     var startMinutes by remember { mutableIntStateOf(8) }
     var endMinutes by remember { mutableIntStateOf(10) }
     val navigationItems = listOf("Speeches", "Custom", "Saved Data")
@@ -29,15 +29,7 @@ fun SpeechTimePicker(navController: NavHostController, viewModel: SpeechTimerVie
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Set Speech Duration") },
-//                navigationIcon = {
-//                    IconButton(onClick = { navController.popBackStack() }) {
-//                        Icon(
-//                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-//                            contentDescription = "Back"
-//                        )
-//                    }
-//                }
+                title = { Text("Set Speech Duration") }
             )
         },
         bottomBar = {
@@ -65,12 +57,6 @@ fun SpeechTimePicker(navController: NavHostController, viewModel: SpeechTimerVie
                                 navController.navigate(Screen.Main.route)
                             if (selectedItem.intValue == 2)
                                 navController.navigate(Screen.SavedDataScreen.route)
-//                            scope.launch {
-//                                snackbarHostState.showSnackbar(
-//                                    message = "Switched to ${navigationItems[index]}",
-//                                    duration = SnackbarDuration.Short
-//                                )
-//                            }
                         }
                     )
                 }

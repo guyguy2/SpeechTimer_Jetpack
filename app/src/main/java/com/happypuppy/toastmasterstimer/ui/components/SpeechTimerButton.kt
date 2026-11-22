@@ -1,9 +1,7 @@
 package com.happypuppy.toastmasterstimer.ui.components
 
-import android.R.attr.fontStyle
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
@@ -32,7 +30,6 @@ fun SpeechTimerButton(text: String, navController: NavHostController) {
         modifier = Modifier
             .fillMaxWidth()
             .height(120.dp)
-            .heightIn(min = 100.dp, max = 150.dp)
             .padding(horizontal = 8.dp)
     ) {
         Text(

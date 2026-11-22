@@ -5,7 +5,6 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -15,7 +14,6 @@ import kotlinx.coroutines.flow.map
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
 // Preference keys
-val EXAMPLE_COUNTER = intPreferencesKey("example_counter")
 val THEME_KEY = stringPreferencesKey("app_theme")
 val VIBRATE_KEY = booleanPreferencesKey("vibrate_enabled")
 val SOUND_KEY = booleanPreferencesKey("sound_enabled")
@@ -34,19 +32,6 @@ enum class AppTheme(val value: String) {
 }
 
 class DataStoreManager(private val context: Context) {
-
-    // Example counter for backward compatibility
-    val exampleCounterFlow: Flow<Int> = context.dataStore.data
-        .map { preferences ->
-            preferences[EXAMPLE_COUNTER] ?: 0
-        }
-
-    suspend fun incrementCounter() {
-        context.dataStore.edit { settings ->
-            val currentCounterValue = settings[EXAMPLE_COUNTER] ?: 0
-            settings[EXAMPLE_COUNTER] = currentCounterValue + 1
-        }
-    }
 
     // Theme preference
     val themeFlow: Flow<AppTheme> = context.dataStore.data
