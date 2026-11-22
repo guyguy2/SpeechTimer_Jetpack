@@ -57,9 +57,15 @@ captures/
 .idea/libraries
 .idea/caches
 
-# Keystore files
+# Keystore & signing / CI secret files
 *.jks
+*.p12
 *.keystore
+keystore.properties
+play-key.json
+*-service-account*.json
+.secure_files/
+.aider*
 
 # External native build folder generated in Android Studio 2.2 and later
 .externalNativeBuild
