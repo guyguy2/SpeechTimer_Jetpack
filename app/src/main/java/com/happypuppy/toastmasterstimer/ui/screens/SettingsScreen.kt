@@ -1,8 +1,8 @@
 package com.happypuppy.toastmasterstimer.ui.screens
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.media.RingtoneManager
-import android.net.Uri
 import android.os.VibrationEffect
 import android.os.VibratorManager
 import androidx.compose.foundation.clickable
@@ -50,6 +50,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.navigation.NavHostController
 import com.happypuppy.toastmasterstimer.R
 import com.happypuppy.toastmasterstimer.data.preferences.AppTheme
@@ -84,27 +85,21 @@ fun SettingsScreen(navController: NavHostController) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Theme setting
             ThemeSelector(dataStoreManager)
 
             HorizontalDivider()
 
-            // Vibration setting
             VibrationSetting(dataStoreManager)
 
-            // Sound setting
             SoundSetting(dataStoreManager)
 
             HorizontalDivider()
 
-            // Rate app
             RateAppSetting()
 
-            // About
             AboutSetting(onClick = { showAboutDialog = true })
         }
 
-        // About dialog
         if (showAboutDialog) {
             AboutDialog(onDismiss = { showAboutDialog = false })
         }
@@ -126,7 +121,6 @@ fun ThemeSelector(dataStoreManager: DataStoreManager) {
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
-        // System Default option
         ThemeOption(
             title = "System Default",
             icon = painterResource(R.drawable.smartphone_24px),
@@ -138,7 +132,6 @@ fun ThemeSelector(dataStoreManager: DataStoreManager) {
             }
         )
 
-        // Light Theme option
         ThemeOption(
             title = "Light",
             icon = painterResource(R.drawable.light_mode_24px),
@@ -150,7 +143,6 @@ fun ThemeSelector(dataStoreManager: DataStoreManager) {
             }
         )
 
-        // Dark Theme option
         ThemeOption(
             title = "Dark",
             icon = painterResource(R.drawable.dark_mode_24px),
@@ -207,7 +199,6 @@ fun VibrationSetting(dataStoreManager: DataStoreManager) {
             scope.launch {
                 dataStoreManager.setVibrateEnabled(enabled)
 
-                // Demonstration vibration when enabled
                 if (enabled) {
                     val vibrator = context.getSystemService(VibratorManager::class.java)?.defaultVibrator
                     vibrator?.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
@@ -231,14 +222,13 @@ fun SoundSetting(dataStoreManager: DataStoreManager) {
             scope.launch {
                 dataStoreManager.setSoundEnabled(enabled)
 
-                // Demonstration sound when enabled
                 if (enabled) {
                     try {
                         val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
                         val ringtone = RingtoneManager.getRingtone(context, notification)
-                        ringtone.play()
-                    } catch (e: Exception) {
-                        // Handle potential exceptions
+                        ringtone?.play()
+                    } catch (_: Exception) {
+                        // Ignore devices without a default notification tone
                     }
                 }
             }
@@ -296,20 +286,22 @@ fun RateAppSetting() {
         modifier = Modifier
             .fillMaxWidth()
             .clickable {
-                // Open Play Store
+                val marketIntent = Intent(Intent.ACTION_VIEW).apply {
+                    data = "market://details?id=${context.packageName}".toUri()
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
                 try {
-                    val intent = Intent(Intent.ACTION_VIEW).apply {
-                        data = Uri.parse("market://details?id=${context.packageName}")
+                    context.startActivity(marketIntent)
+                } catch (_: ActivityNotFoundException) {
+                    val webIntent = Intent(Intent.ACTION_VIEW).apply {
+                        data = "https://play.google.com/store/apps/details?id=${context.packageName}".toUri()
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
-                    context.startActivity(intent)
-                } catch (e: Exception) {
-                    // If Play Store app is not installed, open in browser
-                    val intent = Intent(Intent.ACTION_VIEW).apply {
-                        data = Uri.parse("https://play.google.com/store/apps/details?id=${context.packageName}")
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    try {
+                        context.startActivity(webIntent)
+                    } catch (_: ActivityNotFoundException) {
+                        // No store or browser installed to handle the intent
                     }
-                    context.startActivity(intent)
                 }
             }
             .padding(vertical = 12.dp),
@@ -379,7 +371,7 @@ fun AboutDialog(onDismiss: () -> Unit) {
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Text("©2013 - 2025 Simple Speech Timer")
+                Text("©2013 - 2026 Simple Speech Timer")
                 Text("All rights reserved")
             }
         },

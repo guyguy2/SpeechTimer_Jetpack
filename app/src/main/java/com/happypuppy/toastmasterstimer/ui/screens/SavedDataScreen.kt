@@ -1,16 +1,50 @@
 package com.happypuppy.toastmasterstimer.ui.screens
 
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -23,12 +57,12 @@ import androidx.navigation.NavHostController
 import com.happypuppy.toastmasterstimer.R
 import com.happypuppy.toastmasterstimer.data.database.repository.Speaker
 import com.happypuppy.toastmasterstimer.navigation.Screen
+import com.happypuppy.toastmasterstimer.ui.components.SpeechTimerBottomBar
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Locale
 
-// Define sorting options
 enum class SortOption(val displayName: String) {
     DATE_NEWEST("Date (Newest first)"),
     DATE_OLDEST("Date (Oldest first)"),
@@ -36,6 +70,15 @@ enum class SortOption(val displayName: String) {
     NAME_DESC("Name (Z-A)"),
     TYPE_ASC("Speech Type (A-Z)"),
     TYPE_DESC("Speech Type (Z-A)")
+}
+
+fun sortSpeakers(speakers: List<Speaker>, option: SortOption): List<Speaker> = when (option) {
+    SortOption.DATE_NEWEST -> speakers.sortedByDescending { it.createdAt }
+    SortOption.DATE_OLDEST -> speakers.sortedBy { it.createdAt }
+    SortOption.NAME_ASC -> speakers.sortedBy { it.name.lowercase(Locale.ROOT) }
+    SortOption.NAME_DESC -> speakers.sortedByDescending { it.name.lowercase(Locale.ROOT) }
+    SortOption.TYPE_ASC -> speakers.sortedBy { it.speechType.lowercase(Locale.ROOT) }
+    SortOption.TYPE_DESC -> speakers.sortedByDescending { it.speechType.lowercase(Locale.ROOT) }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,28 +93,37 @@ fun SavedDataScreen(
     val error = uiState.error
     val context = LocalContext.current
 
-    // State for sort options
     var showSortOptions by remember { mutableStateOf(false) }
     var currentSortOption by remember { mutableStateOf(SortOption.DATE_NEWEST) }
 
-    // Apply sorting to the speaker list
     val sortedSpeakers = remember(speakers, currentSortOption) {
-        when (currentSortOption) {
-            SortOption.DATE_NEWEST -> speakers.sortedByDescending { it.createdAt }
-            SortOption.DATE_OLDEST -> speakers.sortedBy { it.createdAt }
-            SortOption.NAME_ASC -> speakers.sortedBy { it.name }
-            SortOption.NAME_DESC -> speakers.sortedByDescending { it.name }
-            SortOption.TYPE_ASC -> speakers.sortedBy { it.speechType }
-            SortOption.TYPE_DESC -> speakers.sortedByDescending { it.speechType }
-        }
+        sortSpeakers(speakers, currentSortOption)
     }
 
     var showConfirmDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    val navigationItems = listOf("Speeches", "Custom", "Saved Data")
-    var selectedItem = remember { mutableIntStateOf(2) } // Set to 2 for "Saved Data"
+    // Show delete confirmations only after the database write actually succeeds
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is SpeakerEvent.Deleted ->
+                    snackbarHostState.showSnackbar("Deleted ${event.speakerName}'s speech data")
+
+                SpeakerEvent.AllDeleted ->
+                    snackbarHostState.showSnackbar("All speech data cleared")
+            }
+        }
+    }
+
+    // Surface transient errors without hiding existing saved speeches
+    LaunchedEffect(error) {
+        if (error != null && sortedSpeakers.isNotEmpty()) {
+            snackbarHostState.showSnackbar("Error: $error")
+            viewModel.clearError()
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -79,7 +131,6 @@ fun SavedDataScreen(
             TopAppBar(
                 title = { Text("Saved Speech Data") },
                 actions = {
-                    // Sort button
                     IconButton(onClick = { showSortOptions = true }) {
                         Icon(
                             painter = painterResource(R.drawable.sort_24px),
@@ -87,13 +138,15 @@ fun SavedDataScreen(
                         )
                     }
 
-                    // Share All button
                     IconButton(
                         onClick = {
                             if (sortedSpeakers.isNotEmpty()) {
-                                shareSpeakerData(context, sortedSpeakers)
+                                val launched = shareSpeakerData(context, sortedSpeakers)
                                 scope.launch {
-                                    snackbarHostState.showSnackbar("Sharing all speech data")
+                                    snackbarHostState.showSnackbar(
+                                        if (launched) "Sharing all speech data"
+                                        else "No app available to share speech data"
+                                    )
                                 }
                             }
                         },
@@ -105,7 +158,6 @@ fun SavedDataScreen(
                         )
                     }
 
-                    // Delete All button
                     IconButton(
                         onClick = { showConfirmDialog = true },
                         enabled = sortedSpeakers.isNotEmpty()
@@ -119,41 +171,10 @@ fun SavedDataScreen(
             )
         },
         bottomBar = {
-            NavigationBar {
-                navigationItems.forEachIndexed { index, item ->
-                    NavigationBarItem(
-                        icon = {
-                            when (index) {
-                                0 -> Icon(
-                                    painter = painterResource(R.drawable.podium_24px),
-                                    contentDescription = item
-                                )
-
-                                1 -> Icon(
-                                    painter = painterResource(R.drawable.timer_24px),
-                                    contentDescription = item
-                                )
-
-                                2 -> Icon(Icons.Filled.Person, contentDescription = item)
-                            }
-                        },
-                        label = { Text(item) },
-                        selected = selectedItem.intValue == index,
-                        onClick = {
-                            selectedItem.intValue = index
-                            when (index) {
-                                0 -> navController.navigate(Screen.Main.route) {
-                                    // Pop up to the start destination to avoid building up a stack
-                                    popUpTo(Screen.Main.route) { inclusive = true }
-                                }
-
-                                1 -> navController.navigate(Screen.CustomSpeechScreen.route)
-                                // We're already on index 2, no need to navigate
-                            }
-                        }
-                    )
-                }
-            }
+            SpeechTimerBottomBar(
+                currentRoute = Screen.SavedDataScreen.route,
+                navController = navController
+            )
         }
     ) { paddingValues ->
         Box(
@@ -165,37 +186,51 @@ fun SavedDataScreen(
                 CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.Center)
                 )
-            } else if (error != null) {
-                Text(
-                    text = "Error: $error",
+            } else if (error != null && sortedSpeakers.isEmpty()) {
+                Column(
                     modifier = Modifier
                         .align(Alignment.Center)
-                        .padding(16.dp),
-                    color = MaterialTheme.colorScheme.error
-                )
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Error: $error",
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    OutlinedButton(onClick = { viewModel.clearError() }) {
+                        Text("Dismiss")
+                    }
+                }
             } else if (sortedSpeakers.isEmpty()) {
                 EmptyStateContent(
-                    onAddSpeech = { navController.navigate(Screen.Main.route) }
+                    onAddSpeech = {
+                        navController.navigate(Screen.Main.route) {
+                            popUpTo(Screen.Main.route) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
                 )
             } else {
                 SpeechDataList(
                     speakers = sortedSpeakers,
                     onShareClick = { speaker ->
-                        shareSingleSpeaker(context, speaker)
+                        val launched = shareSingleSpeaker(context, speaker)
                         scope.launch {
-                            snackbarHostState.showSnackbar("Sharing ${speaker.name}'s speech data")
+                            snackbarHostState.showSnackbar(
+                                if (launched) "Sharing ${speaker.name}'s speech data"
+                                else "No app available to share speech data"
+                            )
                         }
                     },
                     onDeleteClick = { speaker ->
                         viewModel.deleteSpeaker(speaker)
-                        scope.launch {
-                            snackbarHostState.showSnackbar("Deleted ${speaker.name}'s speech data")
-                        }
                     }
                 )
             }
 
-            // Confirm dialog for clearing all data
             if (showConfirmDialog) {
                 AlertDialog(
                     onDismissRequest = { showConfirmDialog = false },
@@ -206,9 +241,6 @@ fun SavedDataScreen(
                             onClick = {
                                 viewModel.deleteAllSpeakers()
                                 showConfirmDialog = false
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("All speech data cleared")
-                                }
                             }
                         ) {
                             Text("Delete All")
@@ -224,7 +256,6 @@ fun SavedDataScreen(
                 )
             }
 
-            // Sort options dialog
             if (showSortOptions) {
                 AlertDialog(
                     onDismissRequest = { showSortOptions = false },
@@ -235,6 +266,10 @@ fun SavedDataScreen(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .clickable {
+                                            currentSortOption = option
+                                            showSortOptions = false
+                                        }
                                         .padding(vertical = 8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -277,7 +312,7 @@ fun SpeechDataList(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(speakers) { speaker ->
+        items(items = speakers, key = { it.id }) { speaker ->
             SpeakerCard(
                 speaker = speaker,
                 onShareClick = { onShareClick(speaker) },
@@ -333,7 +368,6 @@ fun SpeakerCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Display creation date and time
             Text(
                 text = formattedDate,
                 style = MaterialTheme.typography.bodySmall,
@@ -416,54 +450,49 @@ fun EmptyStateContent(onAddSpeech: () -> Unit) {
     }
 }
 
-// Function to share a single speaker's data
-fun shareSingleSpeaker(context: Context, speaker: Speaker) {
-    val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
+private fun formatSpeakerSummary(speaker: Speaker, dateFormat: SimpleDateFormat): String {
     val formattedDate = dateFormat.format(speaker.createdAt)
-
-    val shareText = """
-        Simple Speech Timer - Speaker Data
-        
+    return """
         Name: ${speaker.name}
         Speech Type: ${speaker.speechType}
         Duration: ${speaker.duration}
         Recorded on: $formattedDate
-        
-        Created with Simple Speech Timer App
     """.trimIndent()
-
-    val sendIntent = Intent().apply {
-        action = Intent.ACTION_SEND
-        putExtra(Intent.EXTRA_TEXT, shareText)
-        type = "text/plain"
-    }
-
-    context.startActivity(Intent.createChooser(sendIntent, "Share Speech Data"))
 }
 
-//todo remove duplicate code by extracting method from above
-fun shareSpeakerData(context: Context, speakers: List<Speaker>) {
+private fun launchShareChooser(context: Context, text: String, chooserTitle: String): Boolean {
+    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+        putExtra(Intent.EXTRA_TEXT, text)
+        type = "text/plain"
+    }
+    return try {
+        context.startActivity(Intent.createChooser(sendIntent, chooserTitle))
+        true
+    } catch (_: ActivityNotFoundException) {
+        false
+    }
+}
+
+fun shareSingleSpeaker(context: Context, speaker: Speaker): Boolean {
+    val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
+    val shareText = buildString {
+        appendLine("Simple Speech Timer - Speaker Data")
+        appendLine()
+        appendLine(formatSpeakerSummary(speaker, dateFormat))
+        appendLine()
+        append("Created with Simple Speech Timer App")
+    }
+    return launchShareChooser(context, shareText, "Share Speech Data")
+}
+
+fun shareSpeakerData(context: Context, speakers: List<Speaker>): Boolean {
+    val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
     val shareText = speakers.joinToString(
         prefix = "Simple Speech Timer - Speaker Data\n\n",
         separator = "\n--------------------------\n",
         postfix = "\n\nCreated with Simple Speech Timer App for Android"
     ) { speaker ->
-        val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
-        val formattedDate = dateFormat.format(speaker.createdAt)
-
-        """
-       Name: ${speaker.name}
-       Speech Type: ${speaker.speechType}
-       Duration: ${speaker.duration}
-       Recorded on: $formattedDate
-       """.trimIndent()
+        formatSpeakerSummary(speaker, dateFormat)
     }
-
-    val sendIntent = Intent().apply {
-        action = Intent.ACTION_SEND
-        putExtra(Intent.EXTRA_TEXT, shareText)
-        type = "text/plain"
-    }
-
-    context.startActivity(Intent.createChooser(sendIntent, "Share All Speech Data"))
+    return launchShareChooser(context, shareText, "Share All Speech Data")
 }
