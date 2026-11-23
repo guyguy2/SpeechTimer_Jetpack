@@ -18,7 +18,7 @@ Toastmasters speech timer (Android, single `app` module). Kotlin, Jetpack Compos
 
 CI uses JDK 21 (Temurin). CI runs the JVM unit tests and compiles `androidTest` (`assembleDebugAndroidTest`) but does not run the instrumented tests; they are run locally (see Testing).
 
-JDK for local builds: this repo has no daemon JVM pin, so Gradle uses `JAVA_HOME`. The gates for the Wave 0/1 work all ran on JDK 17 (`JAVA_HOME=<jdk17> ./gradlew ...`). On Gradle 9.9.2, `testDebugUnitTest` also succeeded under the Android Studio JBR 25.0.3 and OpenJDK 27 (only that task was tried; lint, assemble and release were run on JDK 17 only).
+JDK for local builds: this repo has no daemon JVM pin, so Gradle uses `JAVA_HOME`. The gates for the Wave 0/1 work all ran on JDK 17 (`JAVA_HOME=<jdk17> ./gradlew ...`). Observed on 2026-11-23: on Gradle 9.9.2, `testDebugUnitTest` also succeeded under the Android Studio JBR 25.0.3 and OpenJDK 27.0.1.1 (only that task was tried; lint, assemble and release were run on JDK 17 only).
 
 Use the `android` CLI as needed for Android workflows (`android --help` / `android <cmd> --help`) — e.g. `android run` / `install`, `emulator` / `device`, `preview` (render Compose `@Preview`s without a device), `screen` / `layout` / `input`, `analyze` (APK/AAB inspection), `sdk` / `info`, and `docs`.
 
@@ -46,9 +46,9 @@ Use the `android` CLI as needed for Android workflows (`android --help` / `andro
 
 Owner decision: no foreground service, no exact alarms, no notification permission. Cues are only promised while the timer screen is open; Settings and the timer screen say so. On return after a phase was crossed while away, `TimerViewModel.onAppForegrounded` fires one catch-up cue (skipped when a live alert for that phase fired within the last 2 s, for example when a frozen process wakes up).
 
-Observed on API 37: about 60 to 90 s after leaving the foreground the process becomes `cached=true isFrozen=true` (`adb shell dumpsys activity processes`). A GREEN cue fired live with usage ALARM, later cues only arrived when the app was reopened. USAGE_ALARM alone does not make background cues reliable; the catch-up cue covers it.
+Observed on an API 37 emulator, 2026-11-23: about 60 to 90 s after leaving the foreground the process becomes `cached=true isFrozen=true` (`adb shell dumpsys activity processes`). A GREEN cue fired live with usage ALARM, later cues only arrived when the app was reopened. USAGE_ALARM alone does not make background cues reliable; the catch-up cue covers it.
 
-Manual check of vibration attributes: start a 1-2 min timer, press Home, wait past 60 s, then run `adb -s emulator-5556 shell dumpsys vibrator_manager` and look at the `com.happypuppy.toastmasterstimer` entries under "Recent vibrations". Expect `usage: ALARM` and a status other than `ignored_background` (before the AlertPlayer change it was `ignored_background`, `usage: TOUCH`). Check restore with `adb -s emulator-5556 shell am kill com.happypuppy.toastmasterstimer` while the app is backgrounded, then relaunch: the time is restored with "Timer restored".
+Manual check of vibration attributes: start a 1-2 min timer, press Home, wait past 60 s, then run `adb -s emulator-NNNN shell dumpsys vibrator_manager` and look at the `com.happypuppy.toastmasterstimer` entries under "Recent vibrations". Expect `usage: ALARM` and a status other than `ignored_background` (before the AlertPlayer change it was `ignored_background`, `usage: TOUCH`). Check restore with `adb -s emulator-NNNN shell am kill com.happypuppy.toastmasterstimer` while the app is backgrounded, then relaunch: the time is restored with "Timer restored".
 
 ## Testing
 
@@ -60,12 +60,12 @@ Instrumented tests (`app/src/androidTest`, 18 tests: `TimerFlowsTest` 15, `DataS
 
 ```bash
 ./gradlew assembleDebug assembleDebugAndroidTest
-adb -s emulator-5556 install -r -t app/build/outputs/apk/debug/app-debug.apk
-adb -s emulator-5556 install -r -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
-adb -s emulator-5556 shell am instrument -w -r com.happypuppy.toastmasterstimer.test/androidx.test.runner.AndroidJUnitRunner
+adb -s emulator-NNNN install -r -t app/build/outputs/apk/debug/app-debug.apk
+adb -s emulator-NNNN install -r -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb -s emulator-NNNN shell am instrument -w -r com.happypuppy.toastmasterstimer.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-When two agents or sessions share the AVD, start every instance with `-read-only` (`emulator -avd Pixel_10 -port 5556 -read-only -no-window -no-audio -no-snapshot-save`); without it the second start fails with "Another emulator instance is running". A read-only AVD starts clean each time, so the app has to be installed again. Stylus handwriting (the Gboard overlay) can swallow typed text; `adb shell settings put secure stylus_handwriting_enabled 0` turns it off for the session.
+`emulator-NNNN` is the serial of your own emulator: replace NNNN with its port. Parallel agents or sessions use distinct ports (5554 and 5556 in the Tech Lead's runs) and must only touch their own. When two agents or sessions share the AVD, start every instance with `-read-only` (`emulator -avd Pixel_10 -port NNNN -read-only -no-window -no-audio -no-snapshot-save`); without it the second start fails with "Another emulator instance is running". A read-only AVD starts clean each time, so the app has to be installed again. Stylus handwriting (the Gboard overlay) can swallow typed text; `adb shell settings put secure stylus_handwriting_enabled 0` turns it off for the session.
 
 ## Database migrations
 
