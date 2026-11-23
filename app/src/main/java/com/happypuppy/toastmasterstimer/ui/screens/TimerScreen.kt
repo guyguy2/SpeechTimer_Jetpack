@@ -202,7 +202,11 @@ fun TimerScreen(
         label = "aspectRatio"
     )
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -232,8 +236,6 @@ fun TimerScreen(
         }
     ) { innerPadding ->
         var showDialog by remember { mutableStateOf(false) }
-        val snackbarHostState = remember { SnackbarHostState() }
-        val scope = rememberCoroutineScope()
 
         // Background is placed BEFORE innerPadding so the phase color extends edge-to-edge behind system bars
         Box(
@@ -243,11 +245,6 @@ fun TimerScreen(
                 .padding(innerPadding),
             contentAlignment = Alignment.Center
         ) {
-            SnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
-
             if (isUIVisible) {
                 BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                     val isCompactHeight = maxHeight < 460.dp

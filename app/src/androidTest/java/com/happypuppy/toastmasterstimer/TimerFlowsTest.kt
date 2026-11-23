@@ -140,14 +140,10 @@ class TimerFlowsTest {
         rule.onNode(hasSetTextAction()).performTextInput("Alex Morgan")
         rule.onNodeWithText("Save").performClick()
 
-        // Confirmation snackbar appears. Its VIEW DATA action is deliberately not clicked here:
-        // on a real device a touch on it did not navigate (the snackbar stays up), which looks like
-        // the full-size content overlay in TimerScreen intercepting the tap. See PLAN.md P1-9.
-        // Navigate through Back plus the bottom tab instead.
+        // FLIPPED in Wave 1 (P1-9): the VIEW DATA action used to be skipped because a tap on it did
+        // nothing (the content overlay in TimerScreen sat above the snackbar host). It must navigate.
         rule.waitForText("Saved Alex Morgan's speech data")
-        rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
-        rule.waitForText("Saved Data")
-        rule.onNodeWithText("Saved Data").performClick()
+        rule.onNodeWithText("VIEW DATA").performClick()
 
         rule.waitForText("Alex Morgan")
         rule.onNodeWithText("TABLE TOPICS").assertExists()
