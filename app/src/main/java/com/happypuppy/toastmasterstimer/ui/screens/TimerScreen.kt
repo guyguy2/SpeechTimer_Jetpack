@@ -1,9 +1,5 @@
 package com.happypuppy.toastmasterstimer.ui.screens
 
-import android.media.Ringtone
-import android.media.RingtoneManager
-import android.os.VibrationEffect
-import android.os.VibratorManager
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -65,6 +61,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.happypuppy.toastmasterstimer.R
+import com.happypuppy.toastmasterstimer.alert.AndroidAlertPlayer
+import com.happypuppy.toastmasterstimer.alert.dispatchPhaseAlert
 import com.happypuppy.toastmasterstimer.data.preferences.DataStoreManager
 import com.happypuppy.toastmasterstimer.navigation.Screen
 import com.happypuppy.toastmasterstimer.ui.components.InputDialog
@@ -110,12 +108,12 @@ fun TimerScreen(
         }
     }
 
-    // Track active ringtone so it is stopped cleanly on reset or screen exit
-    var activeRingtone by remember { mutableStateOf<Ringtone?>(null) }
-    DisposableEffect(Unit) {
+    val context = LocalContext.current
+    // Owns the active ringtone so it is stopped cleanly on reset or screen exit
+    val alertPlayer = remember(context) { AndroidAlertPlayer(context) }
+    DisposableEffect(alertPlayer) {
         onDispose {
-            activeRingtone?.stop()
-            activeRingtone = null
+            alertPlayer.stopSound()
         }
     }
 
@@ -124,35 +122,11 @@ fun TimerScreen(
     val soundEnabled by dataStoreManager.soundEnabledFlow.collectAsState(initial = false)
     val currentVibrationEnabled by rememberUpdatedState(vibrationEnabled)
     val currentSoundEnabled by rememberUpdatedState(soundEnabled)
-    val context = LocalContext.current
 
     // Collect one-shot phase-transition alerts
     LaunchedEffect(timerViewModel) {
         timerViewModel.phaseAlerts.collect { phase ->
-            if (currentVibrationEnabled) {
-                val vibrator = context.getSystemService(VibratorManager::class.java)?.defaultVibrator
-                if (phase == TimerPhase.RED) {
-                    vibrator?.vibrate(
-                        VibrationEffect.createWaveform(longArrayOf(0, 300, 100, 300), -1)
-                    )
-                } else {
-                    vibrator?.vibrate(
-                        VibrationEffect.createOneShot(300, VibrationEffect.DEFAULT_AMPLITUDE)
-                    )
-                }
-            }
-
-            if (currentSoundEnabled) {
-                try {
-                    activeRingtone?.stop()
-                    val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-                    val ringtone = RingtoneManager.getRingtone(context, notification)
-                    activeRingtone = ringtone
-                    ringtone?.play()
-                } catch (_: Exception) {
-                    // Ignore devices without a default notification tone
-                }
-            }
+            dispatchPhaseAlert(alertPlayer, phase, currentVibrationEnabled, currentSoundEnabled)
         }
     }
 
@@ -321,8 +295,7 @@ fun TimerScreen(
                                 if (ticks > 0) {
                                     Button(
                                         onClick = {
-                                            activeRingtone?.stop()
-                                            activeRingtone = null
+                                            alertPlayer.stopSound()
                                             timerViewModel.reset()
                                         },
                                         modifier = Modifier
