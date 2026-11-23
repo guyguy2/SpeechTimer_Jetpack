@@ -16,7 +16,7 @@ Fully free, offline-first, no ads, no accounts, and no internet permission requi
   - **Ice Breaker** (4 to 6 min)
   - **Speech** (5 to 7 min)
 - **Custom speech durations** - Choose any start/end range from 1 to 60 minutes with automatic Green (min), Yellow (midpoint), and Red (max) thresholds.
-- **Full-screen color cues** - Smoothly animated edge-to-edge Green, Yellow, and Red phase transitions with a segmented progress bar and a button to hide controls for unobstructed visibility.
+- **Full-screen color cues** - Smoothly animated edge-to-edge Green, Yellow, and Red phase transitions with a threshold progress bar (milestone markers and phase indicators) and a button to hide controls for unobstructed visibility.
 - **Drift-free monotonic clock** - Backed by `SystemClock.elapsedRealtime()` so pause and resume preserve sub-second accuracy, while keeping the screen awake (`keepScreenOn`) during active timing.
 - **Vibration & sound alerts** - Configurable haptic feedback (default on, with a distinct double-pulse on Red) and notification tone (default off) on each color transition.
 - **Saved speech history & sharing** - Save speaker name, speech type, duration, and date locally; sort by date, name, or speech type; share individual or full meeting timing reports via Android's share sheet.
@@ -54,7 +54,7 @@ Requires JDK 17+ locally (CI runs on Temurin JDK 21).
 # Release APK (R8-minified; unsigned unless keystore.properties or ANDROID_KEYSTORE_* env vars are set)
 ./gradlew assembleRelease
 
-# Signed release App Bundle
+# Release App Bundle (signed when keystore.properties or ANDROID_KEYSTORE_* env vars are set)
 ./gradlew lintRelease bundleRelease -PversionCode=22 -PversionName=2.2.0
 ```
 
@@ -64,6 +64,8 @@ Single-module MVVM + Repository pattern.
 
 ```
 app/src/main/java/com/happypuppy/toastmasterstimer/
+├── MainActivity.kt    # Entry point, edge-to-edge setup, NavGraph, MainScreen
+├── MainApp.kt         # Application class initializing Koin
 ├── data/
 │   ├── database/      # Room Speaker entity, DAO, AppDatabase, SpeakerRepository
 │   ├── preferences/   # DataStoreManager (theme, vibration, sound)

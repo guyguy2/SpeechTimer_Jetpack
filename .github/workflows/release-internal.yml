@@ -4,6 +4,13 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
+    paths-ignore:
+      - "README.md"
+      - "AGENTS.md"
+      - "CLAUDE.md"
+      - "IMPROVEMENTS.md"
+      - ".gitignore"
+      - "LICENSE"
   workflow_dispatch:
     inputs:
       publish:

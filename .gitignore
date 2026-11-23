@@ -1,5 +1,6 @@
 # Built application files
 *.apk
+*.apk.idsig
 *.aar
 *.ap_
 *.aab
@@ -29,13 +30,13 @@ local.properties
 # Log & profiling files
 *.log
 *.hprof
+hs_err_pid*
 
 # Android Studio / IntelliJ / VS Code
 *.iml
 /.idea/
 .navigation/
 captures/
-vcs.xml
 .vscode/
 
 # External native build
@@ -59,6 +60,10 @@ fastlane/readme.md
 # Keystore, signing & CI secret files
 *.jks
 *.p12
+*.pfx
+*.pk8
+*.crt
+*.cer
 *.keystore
 *.pem
 *.key
@@ -84,4 +89,5 @@ google-services.json
 Thumbs.db
 *.swp
 *.swo
+*.orig
 *~
