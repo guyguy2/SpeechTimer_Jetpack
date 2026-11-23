@@ -59,6 +59,9 @@ import com.happypuppy.toastmasterstimer.util.AppVersionInfo
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
+const val FOREGROUND_ONLY_NOTE =
+    "Alerts only play while this app is open. Keep the timer screen open and the screen on while timing."
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(navController: NavHostController) {
@@ -92,6 +95,12 @@ fun SettingsScreen(navController: NavHostController) {
             VibrationSetting(dataStoreManager)
 
             SoundSetting(dataStoreManager)
+
+            Text(
+                text = FOREGROUND_ONLY_NOTE,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             HorizontalDivider()
 

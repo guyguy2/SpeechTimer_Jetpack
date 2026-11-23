@@ -76,6 +76,21 @@ class TimerFlowsTest {
     }
 
     @Test
+    fun timerScreen_showsForegroundOnlyHint() {
+        openTableTopicsTimer()
+        rule.onNodeWithText("Keep this screen open for alerts").assertExists()
+    }
+
+    @Test
+    fun settings_statesThatAlertsNeedTheAppOpen() {
+        awaitMainScreen()
+        rule.onNodeWithContentDescription("Settings").performClick()
+        rule.waitForText(
+            "Alerts only play while this app is open. Keep the timer screen open and the screen on while timing."
+        )
+    }
+
+    @Test
     fun startThenPause_timeAdvancesAndControlsSwap() {
         openTableTopicsTimer()
 

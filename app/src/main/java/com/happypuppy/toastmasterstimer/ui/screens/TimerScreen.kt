@@ -77,9 +77,7 @@ import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
-private val PhaseGreenColor = Color(0xFF006400)
-private val PhaseYellowColor = Color(0xFFFFDC28)
-private val PhaseRedColor = Color(0xFFC62828)
+const val FOREGROUND_HINT = "Keep this screen open for alerts"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -189,9 +187,9 @@ fun TimerScreen(
 
     val timerTextColor = when (currentPhase) {
         TimerPhase.BEFORE_GREEN -> MaterialTheme.colorScheme.onBackground
-        TimerPhase.GREEN -> Color.White
-        TimerPhase.YELLOW -> Color.Black
-        TimerPhase.RED -> Color.White
+        TimerPhase.GREEN -> PhaseOnGreenColor
+        TimerPhase.YELLOW -> PhaseOnYellowColor
+        TimerPhase.RED -> PhaseOnRedColor
     }
 
     val buttonSize = 64.dp
@@ -386,6 +384,13 @@ fun TimerScreen(
                                 }
                             }
                         }
+
+                        Text(
+                            text = FOREGROUND_HINT,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = timerTextColor.copy(alpha = HintTextAlpha),
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
                     }
                 }
             }
