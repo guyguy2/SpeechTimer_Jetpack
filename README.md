@@ -78,3 +78,7 @@ app/src/main/java/com/happypuppy/toastmasterstimer/
 │   └── theme/         # Material 3 / Material You theme, colors, typography
 └── util/              # TimerThresholds phase math, CustomSpeechRange clamping, formatting helpers
 ```
+
+## License
+
+[MIT](LICENSE)
