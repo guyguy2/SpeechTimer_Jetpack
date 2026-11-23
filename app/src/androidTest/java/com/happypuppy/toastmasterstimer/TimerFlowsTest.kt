@@ -11,7 +11,9 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.printToString
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import android.view.accessibility.AccessibilityNodeInfo
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.happypuppy.toastmasterstimer.data.database.repository.Speaker
 import com.happypuppy.toastmasterstimer.data.database.repository.SpeakerRepository
 import kotlinx.coroutines.flow.first
@@ -114,6 +116,75 @@ class TimerFlowsTest {
 
         rule.waitForText("00:00")
         rule.onAllNodesWithText("00:01").assertCountEquals(0)
+    }
+
+    @Test
+    fun back_withElapsedTime_asksFirstAndStayKeepsTheTimer() {
+        openTableTopicsTimer()
+        rule.onNodeWithContentDescription("play").performClick()
+        rule.waitForText("00:02")
+
+        rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
+
+        rule.waitForText("Leave timer?")
+        rule.onNodeWithText("Stay").performClick()
+        rule.onNodeWithContentDescription("pause").assertExists()
+        rule.onAllNodesWithText("00:00").assertCountEquals(0)
+    }
+
+    @Test
+    fun backPrompt_screenReaderReachesStayBeforeLeave() {
+        openTableTopicsTimer()
+        rule.onNodeWithContentDescription("play").performClick()
+        rule.waitForText("00:01")
+        rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
+        rule.waitForText("Leave timer?")
+        rule.waitForIdle()
+
+        // Order of the nodes in the accessibility tree is the order a screen reader walks them.
+        val texts = mutableListOf<String>()
+        fun walk(node: AccessibilityNodeInfo?) {
+            if (node == null) return
+            node.text?.let { texts += it.toString() }
+            for (i in 0 until node.childCount) walk(node.getChild(i))
+        }
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        val deadline = System.currentTimeMillis() + 5_000
+        var rootSeen = 0
+        while ("Stay" !in texts && System.currentTimeMillis() < deadline) {
+            texts.clear()
+            val root = automation.rootInActiveWindow
+            if (root != null) rootSeen++
+            walk(root)
+            if ("Stay" !in texts) Thread.sleep(250)
+        }
+        check("Stay" in texts && "Leave" in texts) { "Dialog buttons not in the accessibility tree: $texts (root seen $rootSeen times)" }
+        check(texts.indexOf("Stay") < texts.indexOf("Leave")) {
+            "Screen reader reaches Leave before Stay: $texts"
+        }
+    }
+
+    @Test
+    fun back_withElapsedTime_leaveReturnsToThePresets() {
+        openTableTopicsTimer()
+        rule.onNodeWithContentDescription("play").performClick()
+        rule.waitForText("00:01")
+
+        rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
+        rule.waitForText("Leave timer?")
+        rule.onNodeWithText("Leave").performClick()
+
+        awaitMainScreen()
+    }
+
+    @Test
+    fun back_atZero_leavesWithoutAsking() {
+        openTableTopicsTimer()
+
+        rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
+
+        awaitMainScreen()
+        rule.onAllNodesWithText("Leave timer?").assertCountEquals(0)
     }
 
     @Test
