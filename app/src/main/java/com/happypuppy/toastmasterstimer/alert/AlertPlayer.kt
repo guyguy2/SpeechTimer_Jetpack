@@ -8,7 +8,10 @@ enum class AlertVibration {
     PHASE_CHANGE,
 
     /** Double pulse for RED. */
-    RED_PHASE
+    RED_PHASE,
+
+    /** Short confirmation pulse when the user enables vibration in Settings. */
+    PREVIEW
 }
 
 /**
