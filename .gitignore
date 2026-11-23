@@ -21,29 +21,40 @@ app/src/main/play/release-notes/
 .gradle/
 .kotlin/
 build/
+**/build/
 
 # Local configuration file (SDK path, etc.)
 local.properties
 
-# Log files
+# Log & profiling files
 *.log
+*.hprof
 
-# Android Studio / IntelliJ
+# Android Studio / IntelliJ / VS Code
 *.iml
 /.idea/
 .navigation/
 captures/
 vcs.xml
+.vscode/
 
-# AI assistant local config
-.claude/
-.gemini/
-.cursor/
-.codex/
-.aider*
+# External native build
+.externalNativeBuild/
+.cxx/
 
-# OS files
-.DS_Store
+# Lint outputs
+lint/intermediates/
+lint/generated/
+lint/outputs/
+lint/tmp/
+lint/reports/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+fastlane/readme.md
 
 # Keystore, signing & CI secret files
 *.jks
@@ -60,23 +71,17 @@ google-services.json
 .env.*
 .secure_files/
 
-# External native build
-.externalNativeBuild/
-.cxx/
+# AI assistant local state
+.claude/
+.gemini/
+.cursor/
+.codex/
+.antigravity*
+.aider*
 
-# fastlane
-fastlane/report.xml
-fastlane/Preview.html
-fastlane/screenshots
-fastlane/test_output
-fastlane/readme.md
-
-# Lint
-lint/intermediates/
-lint/generated/
-lint/outputs/
-lint/tmp/
-lint/reports/
-
-# Android Profiling
-*.hprof
+# OS & editor temp files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
