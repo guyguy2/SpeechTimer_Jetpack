@@ -19,7 +19,11 @@ fun signingValue(env: String, prop: String): String? =
 
 android {
     namespace = "com.happypuppy.toastmasterstimer"
-    compileSdk = 36
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 1
+        }
+    }
 
     defaultConfig {
         applicationId = "com.happypuppy.toastmasterstimer"
