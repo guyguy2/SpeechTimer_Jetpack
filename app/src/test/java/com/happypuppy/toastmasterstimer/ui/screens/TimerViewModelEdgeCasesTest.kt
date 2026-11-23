@@ -1,5 +1,6 @@
 package com.happypuppy.toastmasterstimer.ui.screens
 
+import androidx.lifecycle.SavedStateHandle
 import com.happypuppy.toastmasterstimer.MainDispatcherRule
 import com.happypuppy.toastmasterstimer.util.TimerPhase
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -32,7 +33,7 @@ class TimerViewModelEdgeCasesTest {
     private val created = mutableListOf<TimerViewModel>()
 
     private fun newVm(clock: () -> Long): TimerViewModel =
-        TimerViewModel(elapsedRealtimeMs = clock).also { created += it }
+        TimerViewModel(savedStateHandle = SavedStateHandle(), elapsedRealtimeMs = clock).also { created += it }
 
     /**
      * Wraps runTest so every ViewModel created via [newVm] is reset in a finally block. Without

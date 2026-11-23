@@ -265,6 +265,15 @@ fun TimerScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier.fillMaxWidth()
                         ) {
+                            if (timerState.isRestored) {
+                                Text(
+                                    text = "Timer restored",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = timerTextColor,
+                                    modifier = Modifier.padding(bottom = 8.dp)
+                                )
+                            }
+
                             Text(
                                 text = if (isTimeVisible) formattedTime else "     ",
                                 style = TextStyle(

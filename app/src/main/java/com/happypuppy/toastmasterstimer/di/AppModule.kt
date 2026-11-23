@@ -27,7 +27,7 @@ val appModule = module {
     single { SpeakerRepository(get()) }
 
     viewModelOf(::SpeechTimerViewModel)
-    viewModel { TimerViewModel() }
+    viewModel { TimerViewModel(savedStateHandle = get()) }
 
     single { DataStoreManager(androidContext()) }
 }
