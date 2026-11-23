@@ -79,6 +79,7 @@ import com.happypuppy.toastmasterstimer.ui.components.InputDialog
 import com.happypuppy.toastmasterstimer.ui.components.TimerProgressBar
 import com.happypuppy.toastmasterstimer.util.TimerPhase
 import com.happypuppy.toastmasterstimer.util.formatTime
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
@@ -216,6 +217,9 @@ fun TimerScreen(
     var showLeaveDialog by rememberSaveable { mutableStateOf(false) }
     BackHandler(enabled = ticks > 0) { showLeaveDialog = true }
 
+    // Restart resets at once; the snackbar offers Undo, which is dropped as soon as the timer moves on
+    var undoJob by remember { mutableStateOf<Job?>(null) }
+
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
@@ -339,7 +343,19 @@ fun TimerScreen(
                                     Button(
                                         onClick = {
                                             alertPlayer.stopSound()
+                                            val snapshot = timerViewModel.snapshot()
                                             timerViewModel.reset()
+                                            undoJob?.cancel()
+                                            undoJob = scope.launch {
+                                                val result = snackbarHostState.showSnackbar(
+                                                    message = "Timer reset",
+                                                    actionLabel = "Undo",
+                                                    duration = SnackbarDuration.Long
+                                                )
+                                                if (result == SnackbarResult.ActionPerformed) {
+                                                    timerViewModel.undoReset(snapshot)
+                                                }
+                                            }
                                         },
                                         modifier = Modifier
                                             .size(buttonSize)
@@ -363,7 +379,10 @@ fun TimerScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Button(
-                                    onClick = { timerViewModel.toggleRunning() },
+                                    onClick = {
+                                        undoJob?.cancel()
+                                        timerViewModel.toggleRunning()
+                                    },
                                     modifier = Modifier
                                         .height(buttonSize)
                                         .width(buttonSize * buttonAspectRatio)

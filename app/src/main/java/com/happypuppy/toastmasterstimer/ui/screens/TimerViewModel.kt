@@ -31,6 +31,9 @@ data class TimerUiState(
     val isRestored: Boolean = false
 )
 
+/** Elapsed time captured before a Restart so it can be put back by Undo. */
+data class TimerSnapshot(val elapsedMs: Long)
+
 /**
  * Holds timer state across configuration changes and tracks elapsed time from a
  * monotonic clock so the timer does not drift, preserves sub-second progress across
@@ -132,6 +135,24 @@ class TimerViewModel(
                 isRestored = false
             )
         }
+        persist()
+    }
+
+    /** Captures the current elapsed time so a Restart can be undone. */
+    fun snapshot(): TimerSnapshot = TimerSnapshot(elapsedMs = currentElapsedMs())
+
+    /**
+     * Puts the time captured by [snapshot] back, paused and without re-firing the alerts for phases
+     * it already passed. Ignored once the timer has moved on from the reset state.
+     */
+    fun undoReset(snapshot: TimerSnapshot) {
+        val state = _uiState.value
+        if (state.isRunning || state.elapsedSeconds != 0) return
+        accumulatedMs = snapshot.elapsedMs.coerceAtLeast(0L)
+        startedAtMs = null
+        val restoredPhase = state.thresholds.phaseAt((accumulatedMs / 1000L).toInt())
+        lastAlertedPhase = restoredPhase
+        syncElapsed()
         persist()
     }
 

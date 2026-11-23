@@ -116,6 +116,26 @@ class TimerFlowsTest {
 
         rule.waitForText("00:00")
         rule.onAllNodesWithText("00:01").assertCountEquals(0)
+        // Wave 1: Restart still resets immediately, and now offers Undo instead of asking first.
+        rule.waitForText("Timer reset")
+        rule.onNodeWithText("Undo").assertExists()
+    }
+
+    @Test
+    fun restart_undoPutsTheElapsedTimeBackPaused() {
+        openTableTopicsTimer()
+        rule.onNodeWithContentDescription("play").performClick()
+        rule.waitForText("00:02")
+        rule.onNodeWithContentDescription("pause").performClick()
+        rule.onNodeWithContentDescription("restart").performClick()
+        rule.waitForText("Timer reset")
+        rule.onAllNodesWithText("00:02").assertCountEquals(0)
+
+        rule.onNodeWithText("Undo").performClick()
+
+        rule.waitForText("00:02")
+        rule.onNodeWithContentDescription("play").assertExists()
+        rule.onNodeWithContentDescription("save").assertExists()
     }
 
     @Test

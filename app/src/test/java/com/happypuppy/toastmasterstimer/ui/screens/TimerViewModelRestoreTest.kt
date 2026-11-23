@@ -20,7 +20,7 @@ import org.junit.Test
 
 /**
  * Process-death restore (Wave 1, P0-2): the ViewModel mirrors its clock state into a
- * [SavedStateHandle] and rebuilds from it.
+ * [SavedStateHandle] and rebuilds from it, plus the snapshot used by the Restart Undo.
  * Tests pre-fill a handle (what the system hands back after process death) and use the fake clock.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -230,5 +230,55 @@ class TimerViewModelRestoreTest {
         val toReset = newVm(savedHandle(accumulatedMs = 20_000L)) { testScheduler.currentTime }
         toReset.reset()
         assertFalse(toReset.uiState.value.isRestored)
+    }
+
+    @Test
+    fun undoReset_restoresTheElapsedTimePausedWithoutReAlerting() = runTimerTest {
+        val vm = newVm { testScheduler.currentTime }
+        vm.configure(1, 2)
+        val alerts = mutableListOf<TimerPhase>()
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.phaseAlerts.collect { alerts.add(it) } }
+
+        vm.start()
+        advanceTimeBy(95_300L)
+        runCurrent()
+        assertEquals(listOf(TimerPhase.GREEN, TimerPhase.YELLOW), alerts)
+
+        val snapshot = vm.snapshot()
+        vm.reset()
+        assertEquals(0, vm.uiState.value.elapsedSeconds)
+
+        vm.undoReset(snapshot)
+
+        assertEquals(95, vm.uiState.value.elapsedSeconds)
+        assertEquals(TimerPhase.YELLOW, vm.uiState.value.phase)
+        assertFalse(vm.uiState.value.isRunning)
+        assertEquals(listOf(TimerPhase.GREEN, TimerPhase.YELLOW), alerts)
+
+        // Resuming continues from the restored time and still alerts RED once.
+        vm.start()
+        advanceTimeBy(30_000L)
+        runCurrent()
+        assertEquals(listOf(TimerPhase.GREEN, TimerPhase.YELLOW, TimerPhase.RED), alerts)
+        job.cancel()
+    }
+
+    @Test
+    fun undoReset_isIgnoredOnceTheTimerHasMovedOn() = runTimerTest {
+        val vm = newVm { testScheduler.currentTime }
+        vm.configure(1, 2)
+        vm.start()
+        advanceTimeBy(10_000L)
+        runCurrent()
+        val snapshot = vm.snapshot()
+        vm.reset()
+        vm.start()
+        advanceTimeBy(3_000L)
+        runCurrent()
+
+        vm.undoReset(snapshot)
+
+        assertEquals(3, vm.uiState.value.elapsedSeconds)
+        assertTrue(vm.uiState.value.isRunning)
     }
 }
