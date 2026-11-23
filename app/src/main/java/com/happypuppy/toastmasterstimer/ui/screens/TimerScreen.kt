@@ -59,6 +59,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.findViewTreeLifecycleOwner
 import androidx.navigation.NavHostController
 import com.happypuppy.toastmasterstimer.R
 import com.happypuppy.toastmasterstimer.alert.AndroidAlertPlayer
@@ -128,6 +131,27 @@ fun TimerScreen(
         timerViewModel.phaseAlerts.collect { phase ->
             dispatchPhaseAlert(alertPlayer, phase, currentVibrationEnabled, currentSoundEnabled)
         }
+    }
+
+    // Repeat the cue once when returning to a timer that crossed a phase while the app was away
+    LaunchedEffect(timerViewModel) {
+        timerViewModel.catchUpCues.collect { phase ->
+            dispatchPhaseAlert(alertPlayer, phase, currentVibrationEnabled, currentSoundEnabled)
+        }
+    }
+    // findViewTreeLifecycleOwner avoids the deprecated LocalLifecycleOwner until lifecycle-runtime-compose is added
+    val lifecycleOwner = view.findViewTreeLifecycleOwner()
+    DisposableEffect(lifecycleOwner, timerViewModel) {
+        if (lifecycleOwner == null) return@DisposableEffect onDispose { }
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_STOP -> timerViewModel.onAppBackgrounded()
+                Lifecycle.Event.ON_START -> timerViewModel.onAppForegrounded()
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     var isTimeVisible by remember { mutableStateOf(true) }

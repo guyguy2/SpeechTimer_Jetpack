@@ -56,6 +56,14 @@ class TimerViewModelEdgeCasesTest {
         return alerts to job
     }
 
+    private fun TestScope.collectCatchUps(vm: TimerViewModel): Pair<MutableList<TimerPhase>, kotlinx.coroutines.Job> {
+        val cues = mutableListOf<TimerPhase>()
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) {
+            vm.catchUpCues.collect { cues.add(it) }
+        }
+        return cues to job
+    }
+
     @Test
     fun startWhileRunning_isANoOpAndDoesNotRestartTheClock() = runTimerTest {
         val vm = newVm({ testScheduler.currentTime })
@@ -166,20 +174,145 @@ class TimerViewModelEdgeCasesTest {
     }
 
     @Test
-    fun jumpStraightToRed_skipsEarlierPhaseAlerts() = runTimerTest {
-        // Characterization: a long stall (Doze, process freeze) only alerts for the phase it
-        // wakes up in. Pinning this so any change to "catch-up" alerts is a deliberate decision.
+    fun jumpStraightToRed_alertsOnlyTheLivePhaseAndCatchesUpOnReturn() = runTimerTest {
+        // FLIPPED in Wave 1 (P0-1): this used to pin "a long stall only alerts for the phase it wakes
+        // up in" with no catch-up. The live alert still skips GREEN and YELLOW (only the current
+        // phase matters), but returning to the app now fires one catch-up cue for that phase.
         var nowMs = 0L
         val vm = newVm({ nowMs })
         vm.configure(1, 2)
         val (alerts, job) = collectAlerts(vm)
+        val (catchUps, catchUpJob) = collectCatchUps(vm)
 
         vm.start()
+        vm.onAppBackgrounded()
         nowMs = 200_000L
         vm.syncElapsed()
 
         assertEquals(listOf(TimerPhase.RED), alerts)
         assertEquals(TimerPhase.RED, vm.uiState.value.phase)
+        assertEquals(emptyList<TimerPhase>(), catchUps)
+
+        // The user comes back well after the live alert (screen was off, process was alive).
+        nowMs = 230_000L
+        vm.onAppForegrounded()
+
+        assertEquals(listOf(TimerPhase.RED), catchUps)
+        assertEquals(listOf(TimerPhase.RED), alerts)
+
+        vm.reset()
+        job.cancel()
+        catchUpJob.cancel()
+    }
+
+    @Test
+    fun returnWithoutCrossingAPhase_hasNoCatchUpCue() = runTimerTest {
+        var nowMs = 0L
+        val vm = newVm({ nowMs })
+        vm.configure(1, 2)
+        val (catchUps, job) = collectCatchUps(vm)
+
+        vm.start()
+        nowMs = 10_000L
+        vm.syncElapsed()
+        vm.onAppBackgrounded()
+        nowMs = 40_000L
+        vm.onAppForegrounded()
+
+        assertEquals(emptyList<TimerPhase>(), catchUps)
+
+        vm.reset()
+        job.cancel()
+    }
+
+    @Test
+    fun catchUpCue_namesTheCurrentPhaseAndFiresOnlyOnce() = runTimerTest {
+        var nowMs = 0L
+        val vm = newVm({ nowMs })
+        vm.configure(1, 2)
+        val (catchUps, job) = collectCatchUps(vm)
+
+        vm.start()
+        vm.onAppBackgrounded()
+        nowMs = 65_000L
+        vm.syncElapsed() // crosses GREEN while away
+        nowMs = 95_000L
+        vm.syncElapsed() // crosses YELLOW while away
+        nowMs = 99_000L // back a few seconds later, after the live alert
+        vm.onAppForegrounded()
+        vm.onAppForegrounded()
+
+        assertEquals(listOf(TimerPhase.YELLOW), catchUps)
+
+        vm.onAppBackgrounded()
+        vm.onAppForegrounded()
+        assertEquals(listOf(TimerPhase.YELLOW), catchUps)
+
+        vm.reset()
+        job.cancel()
+    }
+
+    @Test
+    fun foregroundSyncThatCrossesAPhase_alertsOnceWithoutADuplicateCatchUp() = runTimerTest {
+        var nowMs = 0L
+        val vm = newVm({ nowMs })
+        vm.configure(1, 2)
+        val (alerts, job) = collectAlerts(vm)
+        val (catchUps, catchUpJob) = collectCatchUps(vm)
+
+        vm.start()
+        vm.onAppBackgrounded()
+        nowMs = 70_000L // no tick ran while away; the foreground sync discovers GREEN
+        vm.onAppForegrounded()
+
+        assertEquals(listOf(TimerPhase.GREEN), alerts)
+        assertEquals(emptyList<TimerPhase>(), catchUps)
+
+        vm.reset()
+        job.cancel()
+        catchUpJob.cancel()
+    }
+
+    @Test
+    fun frozenProcessThawingOnReturn_cuesOnceNotTwice() = runTimerTest {
+        // Seen on device: a cached, frozen process wakes up on return, its tick fires the live alert
+        // an instant before ON_START, and the catch-up used to fire a second time.
+        var nowMs = 0L
+        val vm = newVm({ nowMs })
+        vm.configure(1, 2)
+        val (alerts, job) = collectAlerts(vm)
+        val (catchUps, catchUpJob) = collectCatchUps(vm)
+
+        vm.start()
+        vm.onAppBackgrounded()
+        nowMs = 95_000L
+        vm.syncElapsed() // the thawed tick
+        vm.onAppForegrounded()
+
+        assertEquals(listOf(TimerPhase.YELLOW), alerts)
+        assertEquals(emptyList<TimerPhase>(), catchUps)
+
+        vm.reset()
+        job.cancel()
+        catchUpJob.cancel()
+    }
+
+    @Test
+    fun pausedTimer_hasNoCatchUpCueOnReturn() = runTimerTest {
+        var nowMs = 0L
+        val vm = newVm({ nowMs })
+        vm.configure(1, 2)
+        val (catchUps, job) = collectCatchUps(vm)
+
+        vm.start()
+        nowMs = 70_000L
+        vm.syncElapsed()
+        vm.pause()
+        vm.onAppBackgrounded()
+        nowMs = 500_000L
+        vm.onAppForegrounded()
+
+        assertEquals(emptyList<TimerPhase>(), catchUps)
 
         vm.reset()
         job.cancel()

@@ -40,11 +40,21 @@ class TimerViewModel(
     private val _phaseAlerts = MutableSharedFlow<TimerPhase>(extraBufferCapacity = 4)
     val phaseAlerts: SharedFlow<TimerPhase> = _phaseAlerts.asSharedFlow()
 
+    private val _catchUpCues = MutableSharedFlow<TimerPhase>(extraBufferCapacity = 1)
+
+    /**
+     * One-shot cue emitted when the app returns to the foreground and the timer moved into a later
+     * phase while the app was away, so a cue that was missed with the screen off is repeated once.
+     */
+    val catchUpCues: SharedFlow<TimerPhase> = _catchUpCues.asSharedFlow()
+
     private var isConfigured = false
     private var accumulatedMs: Long = 0L
     private var startedAtMs: Long? = null
     private var lastAlertedPhase: TimerPhase = TimerPhase.BEFORE_GREEN
     private var tickJob: Job? = null
+    private var phaseWhenLeft: TimerPhase? = null
+    private var lastLiveAlertAtMs: Long? = null
 
     fun configure(minMinutes: Int, maxMinutes: Int) {
         val safeMin = minMinutes.coerceAtLeast(0)
@@ -94,6 +104,8 @@ class TimerViewModel(
         accumulatedMs = 0L
         startedAtMs = null
         lastAlertedPhase = TimerPhase.BEFORE_GREEN
+        phaseWhenLeft = null
+        lastLiveAlertAtMs = null
         _uiState.update {
             it.copy(
                 elapsedSeconds = 0,
@@ -107,12 +119,32 @@ class TimerViewModel(
         _uiState.update { it.copy(isUiVisible = !it.isUiVisible) }
     }
 
+    /** Called when the timer screen stops being visible (home, screen off, another app). */
+    fun onAppBackgrounded() {
+        if (phaseWhenLeft == null) phaseWhenLeft = _uiState.value.phase
+    }
+
+    /** Called when the timer screen is visible again; emits a catch-up cue if a phase was crossed. */
+    fun onAppForegrounded() {
+        val left = phaseWhenLeft ?: return
+        phaseWhenLeft = null
+        syncElapsed()
+        val now = _uiState.value.phase
+        // A live alert for this phase fired a moment ago (a frozen process thawing on return, or this
+        // sync itself): the user is getting that cue now, so do not repeat it.
+        val liveAlertAt = lastLiveAlertAtMs
+        val justAlerted = lastAlertedPhase == now && liveAlertAt != null &&
+            elapsedRealtimeMs() - liveAlertAt < RECENT_ALERT_WINDOW_MS
+        if (!justAlerted && now.ordinal > left.ordinal) _catchUpCues.tryEmit(now)
+    }
+
     fun syncElapsed() {
         val elapsedSec = (currentElapsedMs() / 1000L).toInt()
         val newPhase = _uiState.value.thresholds.phaseAt(elapsedSec)
 
         if (newPhase != lastAlertedPhase && newPhase != TimerPhase.BEFORE_GREEN) {
             lastAlertedPhase = newPhase
+            lastLiveAlertAtMs = elapsedRealtimeMs()
             _phaseAlerts.tryEmit(newPhase)
         }
 
@@ -131,5 +163,9 @@ class TimerViewModel(
         } else {
             accumulatedMs
         }
+    }
+
+    private companion object {
+        const val RECENT_ALERT_WINDOW_MS = 2_000L
     }
 }
