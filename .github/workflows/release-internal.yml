@@ -36,7 +36,7 @@ jobs:
           if [ "$GITHUB_REF_TYPE" = tag ]; then
             V="${GITHUB_REF_NAME#v}"
           else
-            V="2.2.${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}"
+            V="2.2.${GITHUB_RUN_NUMBER}"
           fi
           echo "VERSION_NAME=$V" >> "$GITHUB_ENV"
 
