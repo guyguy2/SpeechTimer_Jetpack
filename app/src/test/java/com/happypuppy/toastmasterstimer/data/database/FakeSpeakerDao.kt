@@ -21,6 +21,12 @@ class FakeSpeakerDao(initial: List<Speaker> = emptyList()) : SpeakerDao {
     /** When set, the next [insertSpeaker] call throws this error once. */
     var insertError: Throwable? = null
 
+    /** When set, the next [deleteSpeaker] call throws this error once. */
+    var deleteError: Throwable? = null
+
+    /** When set, the next [deleteAllSpeakers] call throws this error once. */
+    var deleteAllError: Throwable? = null
+
     val current: List<Speaker> get() = speakers.value
 
     override fun getAllSpeakers(): Flow<List<Speaker>> {
@@ -38,10 +44,18 @@ class FakeSpeakerDao(initial: List<Speaker> = emptyList()) : SpeakerDao {
     }
 
     override suspend fun deleteSpeaker(speaker: Speaker) {
+        deleteError?.let {
+            deleteError = null
+            throw it
+        }
         speakers.update { list -> list.filterNot { it.id == speaker.id } }
     }
 
     override suspend fun deleteAllSpeakers() {
+        deleteAllError?.let {
+            deleteAllError = null
+            throw it
+        }
         speakers.value = emptyList()
     }
 }
