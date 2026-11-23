@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -21,25 +20,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.happypuppy.toastmasterstimer.R
 import kotlin.math.roundToInt
 
 /**
  * A custom progress bar that changes color based on the current progress
- * with markers indicating transition points
- *
- * @param currentSeconds Current time in seconds
- * @param maxSeconds Maximum time in seconds
- * @param greenThreshold Seconds at which to switch from transparent to green
- * @param yellowThreshold Seconds at which to switch from green to yellow
- * @param redThreshold Seconds at which to switch from yellow to red
- * @param modifier Optional modifier for the component
- * @param showLabels Whether to show text labels under the markers
+ * with markers indicating transition points.
  */
 @Composable
 fun TimerProgressBar(
@@ -51,55 +38,48 @@ fun TimerProgressBar(
     modifier: Modifier = Modifier,
     showLabels: Boolean = true
 ) {
-    // Calculate progress from 0.0 to 1.0
-    val progress = minOf(currentSeconds.toFloat() / maxSeconds.toFloat(), 1f)
+    val safeMax = maxSeconds.coerceAtLeast(1).toFloat()
+    val progress = (currentSeconds.toFloat() / safeMax).coerceIn(0f, 1f)
 
-    // Animate the progress value
     val animatedProgress by animateFloatAsState(
         targetValue = progress,
         animationSpec = tween(durationMillis = 300),
         label = "progressAnimation"
     )
 
-    // Determine the color of the progress bar with enhanced visibility
     val progressColor = when {
-        currentSeconds < greenThreshold -> Color.LightGray.copy(alpha = 0.7f) // Light gray instead of transparent
-        currentSeconds < yellowThreshold -> Color(0xFF00FF00) // Bright Green for better visibility
-        currentSeconds < redThreshold -> Color(0xFFFFFF00) // Bright Yellow
-        else -> Color(0xFFFF4444) // Brighter Red
+        currentSeconds < greenThreshold -> Color.LightGray.copy(alpha = 0.7f)
+        currentSeconds < yellowThreshold -> Color(0xFF00FF00)
+        currentSeconds < redThreshold -> Color(0xFFFFFF00)
+        else -> Color(0xFFFF4444)
     }
 
-    // Calculate relative positions of thresholds
-    val greenPosition = greenThreshold.toFloat() / maxSeconds.toFloat()
-    val yellowPosition = yellowThreshold.toFloat() / maxSeconds.toFloat()
-    val redPosition = redThreshold.toFloat() / maxSeconds.toFloat()
+    val greenPosition = (greenThreshold.toFloat() / safeMax).coerceIn(0f, 1f)
+    val yellowPosition = (yellowThreshold.toFloat() / safeMax).coerceIn(0f, 1f)
+    val redPosition = (redThreshold.toFloat() / safeMax).coerceIn(0f, 1f)
 
     Column(modifier = modifier) {
-        // Draw the progress bar with enhanced visibility and markers
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(12.dp) // Increased height for better visibility
+                .height(12.dp)
         ) {
-            // Background track with higher contrast
             drawLine(
-                color = Color.DarkGray.copy(alpha = 0.7f), // Darker background for contrast
+                color = Color.DarkGray.copy(alpha = 0.7f),
                 start = Offset(0f, size.height / 2),
                 end = Offset(size.width, size.height / 2),
                 strokeWidth = size.height,
                 cap = StrokeCap.Round
             )
 
-            // Progress indicator with semi-transparent white outline for contrast
             drawLine(
                 color = progressColor,
                 start = Offset(0f, size.height / 2),
                 end = Offset(size.width * animatedProgress, size.height / 2),
-                strokeWidth = size.height * 0.9f, // Slightly smaller to show outline effect
+                strokeWidth = size.height * 0.9f,
                 cap = StrokeCap.Round
             )
 
-            // Draw marker for green threshold
             drawLine(
                 color = Color.White,
                 start = Offset(size.width * greenPosition, 0f),
@@ -107,7 +87,6 @@ fun TimerProgressBar(
                 strokeWidth = 2.dp.toPx()
             )
 
-            // Draw marker for yellow threshold
             drawLine(
                 color = Color.White,
                 start = Offset(size.width * yellowPosition, 0f),
@@ -115,7 +94,6 @@ fun TimerProgressBar(
                 strokeWidth = 2.dp.toPx()
             )
 
-            // Draw marker for red threshold
             drawLine(
                 color = Color.White,
                 start = Offset(size.width * redPosition, 0f),
@@ -123,14 +101,12 @@ fun TimerProgressBar(
                 strokeWidth = 2.dp.toPx()
             )
 
-            // Draw indicator circle with white outline for better visibility
             drawCircle(
                 color = Color.White.copy(alpha = 0.4f),
-                radius = size.height * 1.2f, // Slightly larger for outline effect
+                radius = size.height * 1.2f,
                 center = Offset(size.width * animatedProgress, size.height / 2)
             )
 
-            // Draw main indicator circle
             drawCircle(
                 color = progressColor,
                 radius = size.height,
@@ -138,42 +114,20 @@ fun TimerProgressBar(
             )
         }
 
-        // Add marker labels aligned with their respective markers
         if (showLabels) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 4.dp)
             ) {
-                // We use a custom layout to precisely position each label
                 Layout(
                     content = {
-                        // Start label
-//                        Text(
-//                            text = "Start",
-//                            style = TextStyle(
-//                                color = Color.White,
-//                                fontSize = 10.sp,
-//                                fontWeight = FontWeight.Normal,
-//                                textAlign = TextAlign.Center
-//                            )
-//                        )
                         Icon(
                             painter = painterResource(R.drawable.start_24px),
                             modifier = Modifier.size(12.dp),
-                            contentDescription = "start"
+                            contentDescription = "start",
+                            tint = Color.White
                         )
-
-                        // G label
-//                        Text(
-//                            text = "G",
-//                            style = TextStyle(
-//                                color = Color(0xFF00FF00),
-//                                fontSize = 10.sp,
-//                                fontWeight = FontWeight.Bold,
-//                                textAlign = TextAlign.Center
-//                            )
-//                        )
 
                         Box(
                             modifier = Modifier
@@ -181,32 +135,12 @@ fun TimerProgressBar(
                                 .background(Color(0xFF00FF00), CircleShape)
                         )
 
-                        // Y label
-//                        Text(
-//                            text = "Y",
-//                            style = TextStyle(
-//                                color = Color(0xFFFFFF00),
-//                                fontSize = 10.sp,
-//                                fontWeight = FontWeight.Bold,
-//                                textAlign = TextAlign.Center
-//                            )
-//                        )
                         Box(
                             modifier = Modifier
                                 .size(10.dp)
                                 .background(Color(0xFFFFFF00), CircleShape)
                         )
 
-                        // R label
-//                        Text(
-//                            text = "R",
-//                            style = TextStyle(
-//                                color = Color(0xFFFF4444),
-//                                fontSize = 10.sp,
-//                                fontWeight = FontWeight.Bold,
-//                                textAlign = TextAlign.Center
-//                            )
-//                        )
                         Box(
                             modifier = Modifier
                                 .size(10.dp)
@@ -214,36 +148,26 @@ fun TimerProgressBar(
                         )
                     }
                 ) { measurables, constraints ->
-                    // Measure each label
                     val placeables = measurables.map { it.measure(constraints) }
-
-                    // Calculate the positions for each label
-                    val startLabelWidth = placeables[0].width
                     val gLabelWidth = placeables[1].width
                     val yLabelWidth = placeables[2].width
                     val rLabelWidth = placeables[3].width
-
-                    // Find the height of the tallest label
                     val height = placeables.maxOf { it.height }
 
-                    // Calculate x positions for each label to center them under their markers
-                    val startX = 0
-                    val gX = (constraints.maxWidth * greenPosition).roundToInt() - (gLabelWidth / 2)
-                    val yX = (constraints.maxWidth * yellowPosition).roundToInt() - (yLabelWidth / 2)
-                    val rX = (constraints.maxWidth * redPosition).roundToInt() - (rLabelWidth / 2)
+                    fun clampedX(position: Float, labelWidth: Int): Int {
+                        val maxX = (constraints.maxWidth - labelWidth).coerceAtLeast(0)
+                        return ((constraints.maxWidth * position).roundToInt() - (labelWidth / 2))
+                            .coerceIn(0, maxX)
+                    }
 
-                    // Layout with exact positioning
+                    val gX = clampedX(greenPosition, gLabelWidth)
+                    val yX = clampedX(yellowPosition, yLabelWidth)
+                    val rX = clampedX(redPosition, rLabelWidth)
+
                     layout(constraints.maxWidth, height) {
-                        // Place start label at the beginning
-                        placeables[0].place(startX, 0)
-
-                        // Place G label centered under green marker
+                        placeables[0].place(0, 0)
                         placeables[1].place(gX, 0)
-
-                        // Place Y label centered under yellow marker
                         placeables[2].place(yX, 0)
-
-                        // Place R label centered under red marker
                         placeables[3].place(rX, 0)
                     }
                 }

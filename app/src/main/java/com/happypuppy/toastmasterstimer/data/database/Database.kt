@@ -38,7 +38,7 @@ interface SpeakerDao {
     suspend fun deleteAllSpeakers()
 }
 
-@Database(entities = [Speaker::class], version = 2, exportSchema = false)
+@Database(entities = [Speaker::class], version = 2, exportSchema = true)
 @androidx.room.TypeConverters(DateConverters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun speakerDao(): SpeakerDao

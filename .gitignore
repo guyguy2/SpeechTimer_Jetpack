@@ -1,24 +1,9 @@
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
-
 # Built application files
 *.apk
 *.aar
 *.ap_
 *.aab
+app/release/
 
 # Files for the ART/Dalvik VM
 *.dex
@@ -30,54 +15,54 @@ local.properties
 bin/
 gen/
 out/
+app/src/main/play/release-notes/
 
-# Gradle files
+# Gradle / Kotlin caches & build outputs
 .gradle/
+.kotlin/
 build/
 
-# Local configuration file (sdk path, etc)
+# Local configuration file (SDK path, etc.)
 local.properties
 
-# Log Files
+# Log files
 *.log
 
-# Android Studio Navigation editor temp files
-.navigation/
-
-# Android Studio captures folder
-captures/
-
-# IntelliJ
+# Android Studio / IntelliJ
 *.iml
-.idea/workspace.xml
-.idea/tasks.xml
-.idea/gradle.xml
-.idea/assetWizardSettings.xml
-.idea/dictionaries
-.idea/libraries
-.idea/caches
+/.idea/
+.navigation/
+captures/
+vcs.xml
 
-# Keystore & signing / CI secret files
+# AI assistant local config
+.claude/
+.gemini/
+.cursor/
+.codex/
+.aider*
+
+# OS files
+.DS_Store
+
+# Keystore, signing & CI secret files
 *.jks
 *.p12
 *.keystore
+*.pem
+*.key
 keystore.properties
+signing.properties
 play-key.json
-*-service-account*.json
-.secure_files/
-.aider*
-
-# External native build folder generated in Android Studio 2.2 and later
-.externalNativeBuild
-.cxx/
-
-# Google Services (e.g. APIs or Firebase)
+*service-account*.json
 google-services.json
+.env
+.env.*
+.secure_files/
 
-# Freeline
-freeline.py
-freeline/
-freeline_project_description.json
+# External native build
+.externalNativeBuild/
+.cxx/
 
 # fastlane
 fastlane/report.xml
@@ -86,10 +71,7 @@ fastlane/screenshots
 fastlane/test_output
 fastlane/readme.md
 
-# Version control
-vcs.xml
-
-# lint
+# Lint
 lint/intermediates/
 lint/generated/
 lint/outputs/
