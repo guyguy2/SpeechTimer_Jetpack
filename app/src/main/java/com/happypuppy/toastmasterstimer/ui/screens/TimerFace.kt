@@ -35,11 +35,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -165,14 +167,19 @@ internal fun TimerFace(
                             modifier = Modifier.semantics { contentDescription = spokenTime }
                         )
 
-                        if (isPaused) {
-                            Text(
-                                text = stringResource(R.string.timer_paused),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = timerTextColor,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                        }
+                        // The row is always laid out so pausing does not move the buttons below it. Outside
+                        // the paused state it is invisible and has no semantics (no "Paused" node).
+                        Text(
+                            text = stringResource(R.string.timer_paused),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = timerTextColor,
+                            modifier = Modifier
+                                .padding(top = 4.dp)
+                                .then(
+                                    if (isPaused) Modifier
+                                    else Modifier.graphicsLayer { alpha = 0f }.clearAndSetSemantics { }
+                                )
+                        )
 
                         Spacer(modifier = Modifier.height(if (isCompactHeight) 12.dp else 16.dp))
 

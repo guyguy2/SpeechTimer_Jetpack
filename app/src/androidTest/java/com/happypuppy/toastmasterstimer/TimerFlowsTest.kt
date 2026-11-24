@@ -116,15 +116,17 @@ class TimerFlowsTest {
         rule.onNodeWithContentDescription("pause").performClick()
         rule.waitForText("Paused")
 
-        // The digits used to blank every other second while paused; they must stay put.
+        // The digits used to blank every other second while paused; they must stay put, and hold the
+        // same value for the whole pause.
         val clock = Regex("00:0\\d")
         val digits = SemanticsMatcher("shows a 00:0x time") { node ->
             node.config.getOrNull(SemanticsProperties.Text)?.any { clock.matches(it.text) } == true
         }
+        val atPause = rule.onNode(digits).fetchSemanticsNode().config[SemanticsProperties.Text].first().text
         repeat(8) {
             rule.mainClock.advanceTimeBy(500)
             rule.waitForIdle()
-            rule.onNode(digits).assertExists()
+            rule.onNodeWithText(atPause).assertExists()
             rule.onNodeWithText("Paused").assertExists()
         }
     }

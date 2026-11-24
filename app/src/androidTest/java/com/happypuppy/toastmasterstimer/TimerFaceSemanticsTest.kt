@@ -15,11 +15,13 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.happypuppy.toastmasterstimer.ui.screens.TimerFace
 import com.happypuppy.toastmasterstimer.util.TimerPhase
 import com.happypuppy.toastmasterstimer.util.TimerThresholds
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -179,5 +181,27 @@ class TimerFaceSemanticsTest {
         rule.runOnIdle { running = false; ticks = 0; phase = TimerPhase.BEFORE_GREEN }
         rule.waitForIdle()
         rule.onAllNodesWithText("Paused").assertCountEquals(0)
+    }
+
+    @Test
+    fun pausing_doesNotMoveTheControls() {
+        show(TimerPhase.GREEN, 64, isRunning = true)
+        rule.waitForIdle()
+        val runningToggle = rule.onNodeWithContentDescription("pause").fetchSemanticsNode().boundsInRoot
+        val runningRestart = rule.onNodeWithContentDescription("restart").fetchSemanticsNode().boundsInRoot
+        val runningDigits = rule.onNodeWithText("01:04").fetchSemanticsNode().boundsInRoot
+
+        rule.runOnIdle { running = false }
+        rule.waitForIdle()
+        val pausedToggle = rule.onNodeWithContentDescription("play").fetchSemanticsNode().boundsInRoot
+        val pausedRestart = rule.onNodeWithContentDescription("restart").fetchSemanticsNode().boundsInRoot
+        val pausedDigits = rule.onNodeWithText("01:04").fetchSemanticsNode().boundsInRoot
+
+        // The play/pause button changes width on purpose, so compare its vertical extent and center.
+        assertEquals(runningToggle.top, pausedToggle.top, 0.5f)
+        assertEquals(runningToggle.bottom, pausedToggle.bottom, 0.5f)
+        assertEquals(runningToggle.center.x, pausedToggle.center.x, 0.5f)
+        assertEquals(runningRestart, pausedRestart)
+        assertEquals(runningDigits, pausedDigits)
     }
 }
