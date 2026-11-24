@@ -32,7 +32,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.happypuppy.toastmasterstimer.R
+import com.happypuppy.toastmasterstimer.model.SpeechType
 import com.happypuppy.toastmasterstimer.navigation.Screen
+import com.happypuppy.toastmasterstimer.navigation.TimerRoute
 import com.happypuppy.toastmasterstimer.ui.components.MinutePicker
 import com.happypuppy.toastmasterstimer.ui.components.SpeechTimerBottomBar
 import com.happypuppy.toastmasterstimer.util.CustomSpeechRange
@@ -132,9 +134,7 @@ fun SpeechTimePicker(navController: NavHostController) {
 
                 Button(
                     onClick = {
-                        navController.navigate(
-                            "timer_screen/Custom Speech ($startMinutes - $endMinutes min)/$startMinutes/$endMinutes"
-                        )
+                        navController.navigate(TimerRoute(SpeechType.CUSTOM.id, startMinutes, endMinutes))
                     },
                     modifier = Modifier
                         .fillMaxWidth()

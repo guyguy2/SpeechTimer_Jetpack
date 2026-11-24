@@ -23,13 +23,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
+import androidx.navigation.toRoute
+import com.happypuppy.toastmasterstimer.model.SpeechType
 import com.happypuppy.toastmasterstimer.navigation.Screen
 import com.happypuppy.toastmasterstimer.navigation.Screen.SavedDataScreen
+import com.happypuppy.toastmasterstimer.navigation.TimerRoute
 import com.happypuppy.toastmasterstimer.ui.components.SpeechTimerBottomBar
 import com.happypuppy.toastmasterstimer.ui.components.SpeechTimerButton
 import com.happypuppy.toastmasterstimer.ui.screens.SavedDataScreen
@@ -69,24 +70,13 @@ fun NavGraph(navController: NavHostController, koinViewModel: SpeechTimerViewMod
         composable(Screen.Settings.route) {
             SettingsScreen(navController)
         }
-        composable(
-            route = Screen.TimerScreen.route,
-            arguments = listOf(
-                navArgument("title") { type = NavType.StringType },
-                navArgument("minMinutes") { type = NavType.IntType },
-                navArgument("maxMinutes") { type = NavType.IntType }
-            )
-        ) { backStackEntry ->
-            val title = backStackEntry.arguments?.getString("title") ?: "Timer Screen"
-            val minMinutes = backStackEntry.arguments?.getInt("minMinutes") ?: 1
-            val maxMinutes = backStackEntry.arguments?.getInt("maxMinutes") ?: 2
+        composable<TimerRoute> { backStackEntry ->
+            val route = backStackEntry.toRoute<TimerRoute>()
             val timerViewModel = koinViewModel<TimerViewModel>(viewModelStoreOwner = backStackEntry)
 
             TimerScreen(
                 navController = navController,
-                title = title,
-                minMinutes = minMinutes,
-                maxMinutes = maxMinutes,
+                route = route,
                 viewModel = koinViewModel,
                 timerViewModel = timerViewModel
             )
@@ -137,10 +127,9 @@ fun MainScreen(navController: NavHostController, modifier: Modifier = Modifier) 
                 .padding(horizontal = 8.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            SpeechTimerButton(text = "TABLE TOPICS (1 TO 2 MIN)", navController)
-            SpeechTimerButton(text = "EVALUATION (2 TO 3 MIN)", navController)
-            SpeechTimerButton(text = "ICE BREAKER (4 TO 6 MIN)", navController)
-            SpeechTimerButton(text = "SPEECH (5 TO 7 MIN)", navController)
+            SpeechType.presets.forEach { type ->
+                SpeechTimerButton(speechType = type, navController = navController)
+            }
         }
     }
 }
