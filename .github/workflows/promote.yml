@@ -27,6 +27,24 @@ on:
         type: choice
         options: [promote, update-rollout, complete, halt]
         default: promote
+  # Called by release-internal.yml for the optional skip-tests fast path (chained internal -> production).
+  workflow_call:
+    inputs:
+      from_track:
+        type: string
+        default: internal
+      to_track:
+        type: string
+        default: production
+      release_status:
+        type: string
+        default: draft
+      user_fraction:
+        type: string
+        default: ""
+      action:
+        type: string
+        default: promote
 
 permissions: {}
 

@@ -17,6 +17,23 @@ on:
         description: "Upload AAB to Google Play internal track (uncheck for dry-run build + preflight only)"
         type: boolean
         default: true
+      skip_tests:
+        description: "Skip testDebugUnitTest (lintRelease, preflight and bundleRelease still run)"
+        type: boolean
+        default: false
+      promote_to_production:
+        description: "After a successful internal upload, promote internal -> production in the same run (manual dispatch only)"
+        type: boolean
+        default: false
+      release_status:
+        description: "Production release status when promote_to_production is set (draft still needs 'Send for review' in Play Console)"
+        type: choice
+        options: [draft, inProgress, completed]
+        default: draft
+      user_fraction:
+        description: "Staged rollout fraction (0 < f < 1), required when release_status=inProgress"
+        required: false
+        default: ""
 
 permissions: {}
 
@@ -71,8 +88,14 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ vars.ANDROID_KEY_ALIAS }}
+          SKIP_TESTS: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_tests }}
         run: |
-          ./gradlew testDebugUnitTest lintRelease bundleRelease \
+          TASKS="testDebugUnitTest lintRelease bundleRelease"
+          if [ "$SKIP_TESTS" = "true" ]; then
+            TASKS="lintRelease bundleRelease"
+            echo "::warning::skip_tests set: unit tests did NOT run for this release"
+          fi
+          ./gradlew $TASKS \
             -PversionCode="$VERSION_CODE" -PversionName="$VERSION_NAME"
 
       - name: Install gplay (pinned + checksum verified)
@@ -158,3 +181,20 @@ jobs:
       - name: Remove keystore from RAM
         if: always()
         run: rm -f /dev/shm/upload.keystore
+
+  # Optional fast path: promote the just-uploaded internal build to production in the same run.
+  # Manual dispatch only. The production SA's WIF binding also requires event_name=workflow_dispatch from the allowed actor,
+  # so a push to main can never reach production even if this condition were removed.
+  promote-production:
+    needs: publish-internal
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish && inputs.promote_to_production }}
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/promote.yml
+    with:
+      from_track: internal
+      to_track: production
+      release_status: ${{ inputs.release_status }}
+      user_fraction: ${{ inputs.user_fraction }}
+      action: promote
