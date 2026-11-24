@@ -7,10 +7,14 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 
@@ -23,6 +27,9 @@ fun InputDialog(
 ) {
     var text by remember { mutableStateOf(initialText) }
     val trimmed = text.trim()
+    val focusRequester = remember { FocusRequester() }
+    // Focus the name field as soon as the dialog opens, which also brings up the keyboard.
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -32,6 +39,7 @@ fun InputDialog(
                 value = text,
                 onValueChange = { text = it },
                 singleLine = true,
+                modifier = Modifier.focusRequester(focusRequester),
                 label = { Text("Speaker's Name") },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Text,
