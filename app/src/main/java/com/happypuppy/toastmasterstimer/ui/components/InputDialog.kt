@@ -29,13 +29,16 @@ fun InputDialog(
     var text by rememberSaveable { mutableStateOf(initialText) }
     val trimmed = text.trim()
     val focusRequester = remember { FocusRequester() }
-    // Focus the name field as soon as the dialog opens, which also brings up the keyboard.
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
+            // Focus the name field as soon as the dialog opens, which also brings up the keyboard. The
+            // request runs here, in the dialog content next to the field, so the FocusRequester is
+            // attached to a composed field when it fires (requesting from the caller's composition could
+            // run before the dialog window has composed its content and throw).
+            LaunchedEffect(Unit) { focusRequester.requestFocus() }
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
