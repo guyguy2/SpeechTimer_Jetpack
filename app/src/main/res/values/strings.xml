@@ -25,6 +25,9 @@
     <string name="stepper_increase_maximum">Increase maximum minutes</string>
     <string name="stepper_decrease_maximum">Decrease maximum minutes</string>
 
+    <!-- Name of the elapsed-time progress bar -->
+    <string name="timer_progress_description">Time progress</string>
+
     <!-- Shown under the digits while the timer is paused -->
     <string name="timer_paused">Paused</string>
 

@@ -15,6 +15,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -203,5 +204,26 @@ class TimerFaceSemanticsTest {
         assertEquals(runningToggle.center.x, pausedToggle.center.x, 0.5f)
         assertEquals(runningRestart, pausedRestart)
         assertEquals(runningDigits, pausedDigits)
+    }
+
+    @Test
+    fun progressBar_exposesRangeInfoAndNoDecorativeStartMarker() {
+        show(TimerPhase.GREEN, 64)
+
+        rule.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo)).assertExists()
+        val info = rule.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo))
+            .fetchSemanticsNode().config[SemanticsProperties.ProgressBarRangeInfo]
+        assertEquals(64f, info.current, 0.01f)
+        // TimerThresholds(1, 2): the bar spans 0 to red + 2 s.
+        assertEquals(0f, info.range.start, 0.01f)
+        assertEquals(122f, info.range.endInclusive, 0.01f)
+        rule.onNodeWithContentDescription("Time progress").assertExists()
+        rule.onAllNodesWithContentDescription("start").assertCountEquals(0)
+
+        rule.runOnIdle { ticks = 90 }
+        rule.waitForIdle()
+        val later = rule.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo))
+            .fetchSemanticsNode().config[SemanticsProperties.ProgressBarRangeInfo]
+        assertEquals(90f, later.current, 0.01f)
     }
 }
