@@ -11,15 +11,20 @@ import androidx.navigation.toRoute
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.happypuppy.toastmasterstimer.model.SpeechType
 import com.happypuppy.toastmasterstimer.navigation.TimerRoute
+import com.happypuppy.toastmasterstimer.ui.screens.TimerViewModel
+import com.happypuppy.toastmasterstimer.util.TimerThresholds
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.koin.androidx.compose.koinViewModel
 
 /**
- * Real navigation round trip for [TimerRoute]: navigate with a typed route, read it back both from
- * the back stack entry arguments and from the entry's SavedStateHandle (the handle the timer
- * ViewModel receives), with text that breaks hand-built string routes.
+ * Real navigation round trip for [TimerRoute]: navigate with a typed route, read it back from the
+ * back stack entry arguments and from the entry's own SavedStateHandle, with text that breaks
+ * hand-built string routes. It also creates the real [TimerViewModel] the way the NavGraph does
+ * (Koin, scoped to the entry) and checks its range came from the route, which proves the key names
+ * the ViewModel reads out of its SavedStateHandle match the route.
  */
 @RunWith(AndroidJUnit4::class)
 class TimerRouteNavigationTest {
@@ -30,6 +35,7 @@ class TimerRouteNavigationTest {
     private lateinit var navController: NavHostController
     private var fromArguments: TimerRoute? = null
     private var fromHandle: TimerRoute? = null
+    private var viewModelThresholds: TimerThresholds? = null
 
     @Composable
     private fun Host() {
@@ -39,6 +45,8 @@ class TimerRouteNavigationTest {
             composable<TimerRoute> { entry ->
                 fromArguments = entry.toRoute<TimerRoute>()
                 fromHandle = entry.savedStateHandle.toRoute<TimerRoute>()
+                viewModelThresholds =
+                    koinViewModel<TimerViewModel>(viewModelStoreOwner = entry).uiState.value.thresholds
                 Text("timer")
             }
         }
@@ -47,10 +55,16 @@ class TimerRouteNavigationTest {
     private fun roundTrip(route: TimerRoute) {
         fromArguments = null
         fromHandle = null
+        viewModelThresholds = null
         rule.runOnUiThread { navController.navigate(route) }
         rule.waitForIdle()
         assertEquals("from arguments", route, fromArguments)
         assertEquals("from SavedStateHandle", route, fromHandle)
+        assertEquals(
+            "ViewModel range",
+            TimerThresholds(route.minMinutes, route.maxMinutes),
+            viewModelThresholds
+        )
         rule.runOnUiThread { navController.popBackStack() }
         rule.waitForIdle()
     }

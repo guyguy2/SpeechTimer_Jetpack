@@ -70,6 +70,21 @@ class TimerViewModel(
 
     init {
         restoreFromSavedState()
+        if (!isConfigured) applyRouteArgs()
+    }
+
+    /**
+     * Takes the range from the timer route's arguments, which Navigation puts in this handle under
+     * the TimerRoute property names. A restored clock state (above) wins, and a handle without the
+     * arguments (a test, or a preview) keeps the default range.
+     */
+    private fun applyRouteArgs() {
+        val minMinutes = savedStateHandle.get<Int>(ARG_MIN_MINUTES) ?: return
+        val maxMinutes = savedStateHandle.get<Int>(ARG_MAX_MINUTES) ?: return
+        val safeMin = minMinutes.coerceAtLeast(0)
+        val safeMax = maxMinutes.coerceAtLeast(safeMin)
+        isConfigured = true
+        _uiState.update { it.copy(thresholds = TimerThresholds(minMinutes = safeMin, maxMinutes = safeMax)) }
     }
 
     fun configure(minMinutes: Int, maxMinutes: Int) {
@@ -246,6 +261,9 @@ class TimerViewModel(
     }
 
     private companion object {
+        // Must match the property names of navigation.TimerRoute (checked on a device by TimerRouteNavigationTest).
+        const val ARG_MIN_MINUTES = "minMinutes"
+        const val ARG_MAX_MINUTES = "maxMinutes"
         const val KEY_MIN_MINUTES = "timer_min_minutes"
         const val KEY_MAX_MINUTES = "timer_max_minutes"
         const val KEY_ACCUMULATED_MS = "timer_accumulated_ms"
