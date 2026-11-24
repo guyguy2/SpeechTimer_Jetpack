@@ -187,14 +187,14 @@ class TimerFaceSemanticsTest {
     fun pausing_doesNotMoveTheControls() {
         show(TimerPhase.GREEN, 64, isRunning = true)
         rule.waitForIdle()
-        val runningToggle = rule.onNodeWithContentDescription("pause").fetchSemanticsNode().boundsInRoot
-        val runningRestart = rule.onNodeWithContentDescription("restart").fetchSemanticsNode().boundsInRoot
+        val runningToggle = rule.onNodeWithContentDescription("Pause timer").fetchSemanticsNode().boundsInRoot
+        val runningRestart = rule.onNodeWithContentDescription("Restart timer").fetchSemanticsNode().boundsInRoot
         val runningDigits = rule.onNodeWithText("01:04").fetchSemanticsNode().boundsInRoot
 
         rule.runOnIdle { running = false }
         rule.waitForIdle()
-        val pausedToggle = rule.onNodeWithContentDescription("play").fetchSemanticsNode().boundsInRoot
-        val pausedRestart = rule.onNodeWithContentDescription("restart").fetchSemanticsNode().boundsInRoot
+        val pausedToggle = rule.onNodeWithContentDescription("Start timer").fetchSemanticsNode().boundsInRoot
+        val pausedRestart = rule.onNodeWithContentDescription("Restart timer").fetchSemanticsNode().boundsInRoot
         val pausedDigits = rule.onNodeWithText("01:04").fetchSemanticsNode().boundsInRoot
 
         // The play/pause button changes width on purpose, so compare its vertical extent and center.

@@ -229,7 +229,7 @@ internal fun TimerFace(
                                 ) {
                                     Icon(
                                         painter = painterResource(R.drawable.restart_alt_24px),
-                                        contentDescription = "restart",
+                                        contentDescription = stringResource(R.string.timer_action_restart),
                                         modifier = Modifier.size(32.dp)
                                     )
                                 }
@@ -255,7 +255,9 @@ internal fun TimerFace(
                                         if (isTimerRunning) R.drawable.pause_24px
                                         else R.drawable.play_arrow_24px
                                     ),
-                                    contentDescription = if (isTimerRunning) "pause" else "play",
+                                    contentDescription = stringResource(
+                                        if (isTimerRunning) R.string.timer_action_pause else R.string.timer_action_start
+                                    ),
                                     modifier = Modifier.size(32.dp)
                                 )
                             }
@@ -278,7 +280,7 @@ internal fun TimerFace(
                                 ) {
                                     Icon(
                                         painter = painterResource(R.drawable.save_24px),
-                                        contentDescription = "save",
+                                        contentDescription = stringResource(R.string.timer_action_save),
                                         modifier = Modifier.size(32.dp)
                                     )
                                 }

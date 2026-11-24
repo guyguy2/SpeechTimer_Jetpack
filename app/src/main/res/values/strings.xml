@@ -13,6 +13,12 @@
     <string name="phase_spoken_yellow">yellow phase</string>
     <string name="phase_spoken_red">red phase</string>
 
+    <!-- Accessible names of the timer buttons -->
+    <string name="timer_action_start">Start timer</string>
+    <string name="timer_action_pause">Pause timer</string>
+    <string name="timer_action_restart">Restart timer</string>
+    <string name="timer_action_save">Save result</string>
+
     <!-- Shown under the digits while the timer is paused -->
     <string name="timer_paused">Paused</string>
 

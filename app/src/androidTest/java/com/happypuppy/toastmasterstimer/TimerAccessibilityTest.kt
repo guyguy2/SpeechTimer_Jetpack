@@ -56,7 +56,7 @@ class TimerAccessibilityTest {
     @Test
     fun timerRunning_passesAccessibilityChecks() {
         openTimer()
-        rule.onNodeWithContentDescription("play").performClick()
+        rule.onNodeWithContentDescription("Start timer").performClick()
         waitForText("00:01")
         rule.onRoot().tryPerformAccessibilityChecks()
     }
@@ -64,9 +64,9 @@ class TimerAccessibilityTest {
     @Test
     fun timerPaused_passesAccessibilityChecks() {
         openTimer()
-        rule.onNodeWithContentDescription("play").performClick()
+        rule.onNodeWithContentDescription("Start timer").performClick()
         waitForText("00:01")
-        rule.onNodeWithContentDescription("pause").performClick()
+        rule.onNodeWithContentDescription("Pause timer").performClick()
         waitForText("Paused")
         rule.onRoot().tryPerformAccessibilityChecks()
     }

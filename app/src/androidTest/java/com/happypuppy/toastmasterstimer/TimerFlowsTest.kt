@@ -77,7 +77,7 @@ class TimerFlowsTest {
 
         rule.waitForText("00:00")
         rule.onNodeWithText("ICE BREAKER (4 TO 6 MIN)").assertExists()
-        rule.onNodeWithContentDescription("play").assertExists()
+        rule.onNodeWithContentDescription("Start timer").assertExists()
     }
 
     @Test
@@ -99,21 +99,21 @@ class TimerFlowsTest {
     fun startThenPause_timeAdvancesAndControlsSwap() {
         openTableTopicsTimer()
 
-        rule.onNodeWithContentDescription("play").performClick()
+        rule.onNodeWithContentDescription("Start timer").performClick()
         rule.waitForText("00:02")
-        rule.onNodeWithContentDescription("pause").performClick()
+        rule.onNodeWithContentDescription("Pause timer").performClick()
 
-        rule.onNodeWithContentDescription("play").assertExists()
-        rule.onNodeWithContentDescription("save").assertExists()
-        rule.onNodeWithContentDescription("restart").assertExists()
+        rule.onNodeWithContentDescription("Start timer").assertExists()
+        rule.onNodeWithContentDescription("Save result").assertExists()
+        rule.onNodeWithContentDescription("Restart timer").assertExists()
     }
 
     @Test
     fun pausedTimer_keepsItsDigitsVisibleAndShowsAPausedLabel() {
         openTableTopicsTimer()
-        rule.onNodeWithContentDescription("play").performClick()
+        rule.onNodeWithContentDescription("Start timer").performClick()
         rule.waitForText("00:02")
-        rule.onNodeWithContentDescription("pause").performClick()
+        rule.onNodeWithContentDescription("Pause timer").performClick()
         rule.waitForText("Paused")
 
         // The digits used to blank every other second while paused; they must stay put, and hold the
@@ -134,11 +134,11 @@ class TimerFlowsTest {
     @Test
     fun restart_returnsTimerToZeroAndHidesSaveAndRestart() {
         openTableTopicsTimer()
-        rule.onNodeWithContentDescription("play").performClick()
+        rule.onNodeWithContentDescription("Start timer").performClick()
         rule.waitForText("00:01")
-        rule.onNodeWithContentDescription("pause").performClick()
+        rule.onNodeWithContentDescription("Pause timer").performClick()
 
-        rule.onNodeWithContentDescription("restart").performClick()
+        rule.onNodeWithContentDescription("Restart timer").performClick()
 
         rule.waitForText("00:00")
         rule.onAllNodesWithText("00:01").assertCountEquals(0)
@@ -150,38 +150,38 @@ class TimerFlowsTest {
     @Test
     fun restart_undoPutsTheElapsedTimeBackPaused() {
         openTableTopicsTimer()
-        rule.onNodeWithContentDescription("play").performClick()
+        rule.onNodeWithContentDescription("Start timer").performClick()
         rule.waitForText("00:02")
-        rule.onNodeWithContentDescription("pause").performClick()
-        rule.onNodeWithContentDescription("restart").performClick()
+        rule.onNodeWithContentDescription("Pause timer").performClick()
+        rule.onNodeWithContentDescription("Restart timer").performClick()
         rule.waitForText("Timer reset")
         rule.onAllNodesWithText("00:02").assertCountEquals(0)
 
         rule.onNodeWithText("Undo").performClick()
 
         rule.waitForText("00:02")
-        rule.onNodeWithContentDescription("play").assertExists()
-        rule.onNodeWithContentDescription("save").assertExists()
+        rule.onNodeWithContentDescription("Start timer").assertExists()
+        rule.onNodeWithContentDescription("Save result").assertExists()
     }
 
     @Test
     fun back_withElapsedTime_asksFirstAndStayKeepsTheTimer() {
         openTableTopicsTimer()
-        rule.onNodeWithContentDescription("play").performClick()
+        rule.onNodeWithContentDescription("Start timer").performClick()
         rule.waitForText("00:02")
 
         rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
 
         rule.waitForText("Leave timer?")
         rule.onNodeWithText("Stay").performClick()
-        rule.onNodeWithContentDescription("pause").assertExists()
+        rule.onNodeWithContentDescription("Pause timer").assertExists()
         rule.onAllNodesWithText("00:00").assertCountEquals(0)
     }
 
     @Test
     fun backPrompt_screenReaderReachesStayBeforeLeave() {
         openTableTopicsTimer()
-        rule.onNodeWithContentDescription("play").performClick()
+        rule.onNodeWithContentDescription("Start timer").performClick()
         rule.waitForText("00:01")
         rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
         rule.waitForText("Leave timer?")
@@ -213,7 +213,7 @@ class TimerFlowsTest {
     @Test
     fun back_withElapsedTime_leaveReturnsToThePresets() {
         openTableTopicsTimer()
-        rule.onNodeWithContentDescription("play").performClick()
+        rule.onNodeWithContentDescription("Start timer").performClick()
         rule.waitForText("00:01")
 
         rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
@@ -236,24 +236,24 @@ class TimerFlowsTest {
     @Test
     fun runningTimer_survivesActivityRecreation() {
         openTableTopicsTimer()
-        rule.onNodeWithContentDescription("play").performClick()
+        rule.onNodeWithContentDescription("Start timer").performClick()
         rule.waitForText("00:02")
 
         rule.activityRule.scenario.recreate()
 
         rule.waitForText("TABLE TOPICS (1 TO 2 MIN)")
-        rule.onNodeWithContentDescription("pause").assertExists()
+        rule.onNodeWithContentDescription("Pause timer").assertExists()
         rule.onAllNodesWithText("00:00").assertCountEquals(0)
     }
 
     @Test
     fun saveResult_appearsInSavedDataAndCanBeDeleted() {
         openTableTopicsTimer()
-        rule.onNodeWithContentDescription("play").performClick()
+        rule.onNodeWithContentDescription("Start timer").performClick()
         rule.waitForText("00:02")
-        rule.onNodeWithContentDescription("pause").performClick()
+        rule.onNodeWithContentDescription("Pause timer").performClick()
 
-        rule.onNodeWithContentDescription("save").performClick()
+        rule.onNodeWithContentDescription("Save result").performClick()
         rule.onNode(hasSetTextAction()).performTextInput("Alex Morgan")
         rule.onNodeWithText("Save").performClick()
 
