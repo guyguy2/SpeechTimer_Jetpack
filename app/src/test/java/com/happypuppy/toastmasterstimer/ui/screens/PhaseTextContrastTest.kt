@@ -63,4 +63,19 @@ class PhaseTextContrastTest {
             assertReadable("restored label on $name", onColor, background)
         }
     }
+
+    @Test
+    fun phaseChipLabel_isReadableOnEveryPhaseBackground() {
+        phases.forEach { (name, onColor, background) ->
+            assertReadable("phase chip label on $name", onColor, background)
+        }
+    }
+
+    /** Before green the chip uses the theme's onBackground on its background (static schemes only, see above). */
+    @Test
+    fun phaseChipLabel_isReadableOnTheIdleBackgroundInStaticLightAndDarkSchemes() {
+        listOf("light" to LightColorScheme, "dark" to DarkColorScheme).forEach { (name, scheme) ->
+            assertReadable("phase chip label on idle $name background", scheme.onBackground, scheme.background)
+        }
+    }
 }

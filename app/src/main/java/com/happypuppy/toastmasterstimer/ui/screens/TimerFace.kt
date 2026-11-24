@@ -23,6 +23,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +37,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -81,6 +89,9 @@ internal fun TimerFace(
         TimerPhase.RED -> PhaseOnRedColor
     }
 
+    val cue = phaseCue(phase)
+    val phaseLabel = stringResource(cue.labelRes)
+
     val buttonSize = 64.dp
     val buttonAspectRatio by animateFloatAsState(
         targetValue = if (isTimerRunning) 2.0f else 1.5f,
@@ -127,6 +138,8 @@ internal fun TimerFace(
                                 modifier = Modifier.padding(bottom = 8.dp)
                             )
                         }
+
+                        PhaseChip(label = phaseLabel, icon = cue.icon, color = timerTextColor)
 
                         Text(
                             text = timeText,
@@ -250,7 +263,41 @@ internal fun TimerFace(
                     )
                 }
             }
+        } else {
+            // Pure-color mode draws nothing for the phase, but keeps it in the semantics tree so a
+            // screen reader still hears phase changes (same polite live region as the visible chip).
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .semantics {
+                        contentDescription = phaseLabel
+                        liveRegion = LiveRegionMode.Polite
+                    }
+            )
         }
     }
 }
 
+/**
+ * The visible phase cue: an icon plus the phase label. It is its own semantics node and carries the
+ * screen's only live region, so it is announced when the phase changes and never while the time ticks.
+ */
+@Composable
+private fun PhaseChip(label: String, icon: PhaseIcon, color: Color) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier
+            .padding(bottom = 8.dp)
+            .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite }
+    ) {
+        // The label carries the meaning, so the icon is decorative for screen readers.
+        when (icon) {
+            PhaseIcon.HOURGLASS -> Icon(painterResource(R.drawable.hourglass_top_24px), null, tint = color)
+            PhaseIcon.CHECK -> Icon(Icons.Filled.CheckCircle, null, tint = color)
+            PhaseIcon.WARNING -> Icon(Icons.Filled.Warning, null, tint = color)
+            PhaseIcon.STOP -> Icon(painterResource(R.drawable.stop_24px), null, tint = color)
+        }
+        Text(text = label, style = MaterialTheme.typography.titleMedium, color = color)
+    }
+}
