@@ -1,3 +1,27 @@
 <resources>
     <string name="app_name">Simple Speech Timer</string>
+
+    <!-- Phase chip on the timer screen (visible) -->
+    <string name="phase_label_before_green">Before green</string>
+    <string name="phase_label_green">Green: minimum reached</string>
+    <string name="phase_label_yellow">Yellow: wrap up soon</string>
+    <string name="phase_label_red">Red: maximum reached</string>
+
+    <!-- Phase as spoken after the time, for example "1 minute 4 seconds, green phase" -->
+    <string name="phase_spoken_before_green">before green</string>
+    <string name="phase_spoken_green">green phase</string>
+    <string name="phase_spoken_yellow">yellow phase</string>
+    <string name="phase_spoken_red">red phase</string>
+
+    <!-- %1$s is the spoken duration, %2$s the spoken phase -->
+    <string name="timer_spoken_with_phase">%1$s, %2$s</string>
+
+    <plurals name="timer_spoken_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
+    <plurals name="timer_spoken_seconds">
+        <item quantity="one">%d second</item>
+        <item quantity="other">%d seconds</item>
+    </plurals>
 </resources>
