@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -50,16 +51,16 @@ import com.happypuppy.toastmasterstimer.R
 import com.happypuppy.toastmasterstimer.ui.components.TimerProgressBar
 import com.happypuppy.toastmasterstimer.util.TimerPhase
 import com.happypuppy.toastmasterstimer.util.TimerThresholds
+import com.happypuppy.toastmasterstimer.util.formatTime
 
 /**
  * The phase-coloured part of the timer screen, driven by plain values so it can be shown at any
- * phase without a ViewModel, Koin or navigation. [timeText] is the text drawn for the digits.
+ * phase without a ViewModel, Koin or navigation.
  */
 @Composable
 internal fun TimerFace(
     phase: TimerPhase,
     ticks: Int,
-    timeText: String,
     isTimerRunning: Boolean,
     isUiVisible: Boolean,
     isRestored: Boolean,
@@ -91,6 +92,17 @@ internal fun TimerFace(
 
     val cue = phaseCue(phase)
     val phaseLabel = stringResource(cue.labelRes)
+    val resources = LocalResources.current
+    val spokenTime = stringResource(
+        R.string.timer_spoken_with_phase,
+        spokenDuration(
+            totalSeconds = ticks,
+            minutesText = { resources.getQuantityString(R.plurals.timer_spoken_minutes, it, it) },
+            secondsText = { resources.getQuantityString(R.plurals.timer_spoken_seconds, it, it) }
+        ),
+        stringResource(cue.spokenRes)
+    )
+    val isPaused = !isTimerRunning && ticks > 0
 
     val buttonSize = 64.dp
     val buttonAspectRatio by animateFloatAsState(
@@ -141,14 +153,26 @@ internal fun TimerFace(
 
                         PhaseChip(label = phaseLabel, icon = cue.icon, color = timerTextColor)
 
+                        // One spoken description ("1 minute 4 seconds, green phase") instead of the raw
+                        // "01:04". No live region here: the digits change every second.
                         Text(
-                            text = timeText,
+                            text = formatTime(ticks),
                             style = TextStyle(
                                 fontSize = if (isCompactHeight) 48.sp else 60.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = timerTextColor
-                            )
+                                color = if (isPaused) timerTextColor.copy(alpha = PausedDigitsAlpha) else timerTextColor
+                            ),
+                            modifier = Modifier.semantics { contentDescription = spokenTime }
                         )
+
+                        if (isPaused) {
+                            Text(
+                                text = stringResource(R.string.timer_paused),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = timerTextColor,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
 
                         Spacer(modifier = Modifier.height(if (isCompactHeight) 12.dp else 16.dp))
 

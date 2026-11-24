@@ -54,7 +54,6 @@ import com.happypuppy.toastmasterstimer.navigation.Screen
 import com.happypuppy.toastmasterstimer.ui.components.InputDialog
 import com.happypuppy.toastmasterstimer.util.formatTime
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -134,18 +133,6 @@ fun TimerScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    var isTimeVisible by remember { mutableStateOf(true) }
-    LaunchedEffect(isTimerRunning, ticks) {
-        if (!isTimerRunning && ticks > 0) {
-            while (true) {
-                delay(1000)
-                isTimeVisible = !isTimeVisible
-            }
-        } else {
-            isTimeVisible = true
-        }
-    }
-
     val speechType = remember(title) {
         val regex = "(.*?)\\s*\\(.*\\)".toRegex()
         val matchResult = regex.find(title)
@@ -203,7 +190,6 @@ fun TimerScreen(
         TimerFace(
             phase = currentPhase,
             ticks = ticks,
-            timeText = if (isTimeVisible) formattedTime else "     ",
             isTimerRunning = isTimerRunning,
             isUiVisible = isUIVisible,
             isRestored = timerState.isRestored,

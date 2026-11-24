@@ -10,6 +10,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -19,7 +20,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.happypuppy.toastmasterstimer.ui.screens.TimerFace
 import com.happypuppy.toastmasterstimer.util.TimerPhase
 import com.happypuppy.toastmasterstimer.util.TimerThresholds
-import com.happypuppy.toastmasterstimer.util.formatTime
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -37,18 +37,24 @@ class TimerFaceSemanticsTest {
     private var phase by mutableStateOf(TimerPhase.GREEN)
     private var ticks by mutableStateOf(64)
     private var uiVisible by mutableStateOf(true)
+    private var running by mutableStateOf(true)
 
-    private fun show(initialPhase: TimerPhase = TimerPhase.GREEN, initialTicks: Int = 64, visible: Boolean = true) {
+    private fun show(
+        initialPhase: TimerPhase = TimerPhase.GREEN,
+        initialTicks: Int = 64,
+        visible: Boolean = true,
+        isRunning: Boolean = true
+    ) {
         phase = initialPhase
         ticks = initialTicks
         uiVisible = visible
+        running = isRunning
         rule.setContent {
             MaterialTheme {
                 TimerFace(
                     phase = phase,
                     ticks = ticks,
-                    timeText = formatTime(ticks),
-                    isTimerRunning = true,
+                    isTimerRunning = running,
                     isUiVisible = uiVisible,
                     isRestored = false,
                     thresholds = TimerThresholds(1, 2),
@@ -130,5 +136,48 @@ class TimerFaceSemanticsTest {
         rule.onAllNodes(
             SemanticsMatcher.expectValue(SemanticsProperties.ContentDescription, listOf(label(TimerPhase.YELLOW))) and polite
         ).assertCountEquals(1)
+    }
+
+    @Test
+    fun digitsAreSpokenAsOneDurationWithThePhase() {
+        show(TimerPhase.GREEN, 64)
+        rule.onNodeWithText("01:04").assertContentDescriptionEquals("1 minute 4 seconds, green phase")
+
+        rule.runOnIdle { phase = TimerPhase.YELLOW; ticks = 90 }
+        rule.waitForIdle()
+        rule.onNodeWithText("01:30").assertContentDescriptionEquals("1 minute 30 seconds, yellow phase")
+
+        rule.runOnIdle { phase = TimerPhase.RED; ticks = 120 }
+        rule.waitForIdle()
+        rule.onNodeWithText("02:00").assertContentDescriptionEquals("2 minutes, red phase")
+
+        rule.runOnIdle { phase = TimerPhase.BEFORE_GREEN; ticks = 1 }
+        rule.waitForIdle()
+        rule.onNodeWithText("00:01").assertContentDescriptionEquals("1 second, before green")
+    }
+
+    @Test
+    fun pausedTimer_showsASteadyPausedLabelAndKeepsTheDigits() {
+        show(TimerPhase.GREEN, 64, isRunning = false)
+
+        rule.onNodeWithText("Paused").assertExists()
+        rule.onNodeWithText("01:04").assertExists()
+        // No blinking: the digits stay put across what used to be several blink periods.
+        repeat(8) {
+            rule.mainClock.advanceTimeBy(500)
+            rule.waitForIdle()
+            rule.onNodeWithText("01:04").assertExists()
+            rule.onNodeWithText("Paused").assertExists()
+        }
+    }
+
+    @Test
+    fun runningOrIdleTimer_hasNoPausedLabel() {
+        show(TimerPhase.GREEN, 64, isRunning = true)
+        rule.onAllNodesWithText("Paused").assertCountEquals(0)
+
+        rule.runOnIdle { running = false; ticks = 0; phase = TimerPhase.BEFORE_GREEN }
+        rule.waitForIdle()
+        rule.onAllNodesWithText("Paused").assertCountEquals(0)
     }
 }

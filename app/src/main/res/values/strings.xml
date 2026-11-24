@@ -13,6 +13,9 @@
     <string name="phase_spoken_yellow">yellow phase</string>
     <string name="phase_spoken_red">red phase</string>
 
+    <!-- Shown under the digits while the timer is paused -->
+    <string name="timer_paused">Paused</string>
+
     <!-- %1$s is the spoken duration, %2$s the spoken phase -->
     <string name="timer_spoken_with_phase">%1$s, %2$s</string>
 

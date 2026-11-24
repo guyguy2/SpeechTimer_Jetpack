@@ -78,4 +78,38 @@ class PhaseTextContrastTest {
             assertReadable("phase chip label on idle $name background", scheme.onBackground, scheme.background)
         }
     }
+
+    private fun assertReadableLarge(name: String, foreground: Color, background: Color) {
+        val ratio = contrast(foreground, background)
+        assertTrue("$name contrast is %.2f:1, needs at least 3:1 (large text)".format(ratio), ratio >= 3.0)
+    }
+
+    @Test
+    fun pausedDigits_areDimmedButStillReadableOnEveryPhaseBackground() {
+        assertTrue("paused digits must be dimmer than running digits", PausedDigitsAlpha < 1f)
+        phases.forEach { (name, onColor, background) ->
+            assertReadableLarge("paused digits on $name", onColor.copy(alpha = PausedDigitsAlpha), background)
+        }
+    }
+
+    @Test
+    fun pausedDigits_areReadableOnTheIdleBackgroundInStaticLightAndDarkSchemes() {
+        listOf("light" to LightColorScheme, "dark" to DarkColorScheme).forEach { (name, scheme) ->
+            assertReadableLarge(
+                "paused digits on idle $name background",
+                scheme.onBackground.copy(alpha = PausedDigitsAlpha),
+                scheme.background
+            )
+        }
+    }
+
+    @Test
+    fun pausedLabel_isReadableOnEveryPhaseBackground() {
+        phases.forEach { (name, onColor, background) ->
+            assertReadable("Paused label on $name", onColor, background)
+        }
+        listOf("light" to LightColorScheme, "dark" to DarkColorScheme).forEach { (name, scheme) ->
+            assertReadable("Paused label on idle $name background", scheme.onBackground, scheme.background)
+        }
+    }
 }
