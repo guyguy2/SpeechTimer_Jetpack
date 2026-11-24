@@ -265,7 +265,7 @@ class TimerFlowsTest {
         rule.waitForText("Alex Morgan")
         rule.onNodeWithText("TABLE TOPICS").assertExists()
 
-        rule.onNodeWithContentDescription("Delete").performClick()
+        rule.onNodeWithContentDescription("Delete Alex Morgan, TABLE TOPICS").performClick()
         rule.waitForText("No Saved Speech Data")
         check(runBlocking { repository.getAllSpeakers().first() }.isEmpty())
     }

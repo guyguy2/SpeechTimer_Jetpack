@@ -50,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -383,7 +384,7 @@ fun SpeakerCard(
                 IconButton(onClick = onShareClick) {
                     Icon(
                         Icons.Default.Share,
-                        contentDescription = "Share",
+                        contentDescription = stringResource(R.string.saved_row_share, speaker.name, speaker.speechType),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -391,7 +392,7 @@ fun SpeakerCard(
                 IconButton(onClick = onDeleteClick) {
                     Icon(
                         Icons.Default.Delete,
-                        contentDescription = "Delete",
+                        contentDescription = stringResource(R.string.saved_row_delete, speaker.name, speaker.speechType),
                         tint = MaterialTheme.colorScheme.error
                     )
                 }

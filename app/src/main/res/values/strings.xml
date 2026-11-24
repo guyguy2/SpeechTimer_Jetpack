@@ -28,6 +28,10 @@
     <!-- Name of the elapsed-time progress bar -->
     <string name="timer_progress_description">Time progress</string>
 
+    <!-- Per-row actions in Saved Data: %1$s is the speaker, %2$s the speech type -->
+    <string name="saved_row_share">Share %1$s, %2$s</string>
+    <string name="saved_row_delete">Delete %1$s, %2$s</string>
+
     <!-- Shown under the digits while the timer is paused -->
     <string name="timer_paused">Paused</string>
 
