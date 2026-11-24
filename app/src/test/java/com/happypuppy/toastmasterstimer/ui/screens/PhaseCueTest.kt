@@ -52,6 +52,7 @@ class PhaseCueTest {
         assertEquals("5 minutes", spoken(300))
         assertEquals("59 seconds", spoken(59))
         assertEquals("1 second", spoken(1))
+        assertEquals("59 minutes 59 seconds", spoken(3599))
     }
 
     @Test
