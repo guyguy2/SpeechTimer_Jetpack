@@ -2,9 +2,6 @@ package com.happypuppy.toastmasterstimer.ui.screens
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
-import android.media.RingtoneManager
-import android.os.VibrationEffect
-import android.os.VibratorManager
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -37,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,11 +51,16 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.navigation.NavHostController
 import com.happypuppy.toastmasterstimer.R
+import com.happypuppy.toastmasterstimer.alert.AlertVibration
+import com.happypuppy.toastmasterstimer.alert.AndroidAlertPlayer
 import com.happypuppy.toastmasterstimer.data.preferences.AppTheme
 import com.happypuppy.toastmasterstimer.data.preferences.DataStoreManager
 import com.happypuppy.toastmasterstimer.util.AppVersionInfo
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+
+const val FOREGROUND_ONLY_NOTE =
+    "Alerts only play while this app is open. Keep the timer screen open and the screen on while timing."
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,6 +95,12 @@ fun SettingsScreen(navController: NavHostController) {
             VibrationSetting(dataStoreManager)
 
             SoundSetting(dataStoreManager)
+
+            Text(
+                text = FOREGROUND_ONLY_NOTE,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             HorizontalDivider()
 
@@ -188,6 +197,7 @@ fun ThemeOption(
 @Composable
 fun VibrationSetting(dataStoreManager: DataStoreManager) {
     val context = LocalContext.current
+    val alertPlayer = remember(context) { AndroidAlertPlayer(context) }
     val scope = rememberCoroutineScope()
     val isEnabled by dataStoreManager.vibrateEnabledFlow.collectAsState(initial = true)
 
@@ -200,8 +210,7 @@ fun VibrationSetting(dataStoreManager: DataStoreManager) {
                 dataStoreManager.setVibrateEnabled(enabled)
 
                 if (enabled) {
-                    val vibrator = context.getSystemService(VibratorManager::class.java)?.defaultVibrator
-                    vibrator?.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
+                    alertPlayer.vibrate(AlertVibration.PREVIEW)
                 }
             }
         }
@@ -211,6 +220,10 @@ fun VibrationSetting(dataStoreManager: DataStoreManager) {
 @Composable
 fun SoundSetting(dataStoreManager: DataStoreManager) {
     val context = LocalContext.current
+    val alertPlayer = remember(context) { AndroidAlertPlayer(context) }
+    DisposableEffect(alertPlayer) {
+        onDispose { alertPlayer.stopSound() }
+    }
     val scope = rememberCoroutineScope()
     val isEnabled by dataStoreManager.soundEnabledFlow.collectAsState(initial = false)
 
@@ -223,13 +236,7 @@ fun SoundSetting(dataStoreManager: DataStoreManager) {
                 dataStoreManager.setSoundEnabled(enabled)
 
                 if (enabled) {
-                    try {
-                        val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-                        val ringtone = RingtoneManager.getRingtone(context, notification)
-                        ringtone?.play()
-                    } catch (_: Exception) {
-                        // Ignore devices without a default notification tone
-                    }
+                    alertPlayer.playSound()
                 }
             }
         }

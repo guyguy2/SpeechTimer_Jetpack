@@ -1,10 +1,12 @@
 package com.happypuppy.toastmasterstimer.ui.screens
 
+import androidx.lifecycle.SavedStateHandle
 import com.happypuppy.toastmasterstimer.MainDispatcherRule
 import com.happypuppy.toastmasterstimer.util.TimerPhase
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -23,9 +25,29 @@ class TimerViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule(testDispatcher)
 
+    private val created = mutableListOf<TimerViewModel>()
+
+    private fun newVm(clock: () -> Long): TimerViewModel =
+        TimerViewModel(savedStateHandle = SavedStateHandle(), elapsedRealtimeMs = clock).also { created += it }
+
+    /**
+     * Wraps runTest so every ViewModel created via [newVm] is reset in a finally block. Without
+     * this, a failed assertion after start() leaves the unbounded tick loop running and runTest
+     * would drain virtual time forever (hang instead of fail). A runTest timeout does not help:
+     * the drain loop never yields to it.
+     */
+    private fun runTimerTest(body: suspend TestScope.() -> Unit) = runTest(testDispatcher) {
+        try {
+            body()
+        } finally {
+            created.forEach { it.reset() }
+            created.clear()
+        }
+    }
+
     @Test
     fun initialState_isZeroPausedBeforeGreenAndUiVisible() {
-        val vm = TimerViewModel(elapsedRealtimeMs = { 0L })
+        val vm = newVm({ 0L })
         val state = vm.uiState.value
 
         assertEquals(0, state.elapsedSeconds)
@@ -35,8 +57,8 @@ class TimerViewModelTest {
     }
 
     @Test
-    fun start_advancesMonotonicElapsedTimeAndTransitionsPhases() = runTest(testDispatcher) {
-        val vm = TimerViewModel(elapsedRealtimeMs = { testScheduler.currentTime })
+    fun start_advancesMonotonicElapsedTimeAndTransitionsPhases() = runTimerTest {
+        val vm = newVm({ testScheduler.currentTime })
         vm.configure(minMinutes = 1, maxMinutes = 2)
 
         vm.start()
@@ -66,9 +88,9 @@ class TimerViewModelTest {
     }
 
     @Test
-    fun pauseAndResume_preservesSubSecondProgressWithoutDrift() = runTest(testDispatcher) {
+    fun pauseAndResume_preservesSubSecondProgressWithoutDrift() = runTimerTest {
         var nowMs = 0L
-        val vm = TimerViewModel(elapsedRealtimeMs = { nowMs })
+        val vm = newVm({ nowMs })
         vm.configure(minMinutes = 1, maxMinutes = 2)
 
         vm.start()
@@ -103,8 +125,8 @@ class TimerViewModelTest {
     }
 
     @Test
-    fun phaseAlerts_fireOncePerPhaseTransitionWithoutDuplicates() = runTest(testDispatcher) {
-        val vm = TimerViewModel(elapsedRealtimeMs = { testScheduler.currentTime })
+    fun phaseAlerts_fireOncePerPhaseTransitionWithoutDuplicates() = runTimerTest {
+        val vm = newVm({ testScheduler.currentTime })
         vm.configure(minMinutes = 1, maxMinutes = 2)
 
         val alerts = mutableListOf<TimerPhase>()
@@ -123,8 +145,8 @@ class TimerViewModelTest {
     }
 
     @Test
-    fun reset_clearsPhaseStateSoAlertsFireAgainOnNextRun() = runTest(testDispatcher) {
-        val vm = TimerViewModel(elapsedRealtimeMs = { testScheduler.currentTime })
+    fun reset_clearsPhaseStateSoAlertsFireAgainOnNextRun() = runTimerTest {
+        val vm = newVm({ testScheduler.currentTime })
         vm.configure(minMinutes = 1, maxMinutes = 2)
 
         val alerts = mutableListOf<TimerPhase>()
@@ -165,8 +187,8 @@ class TimerViewModelTest {
     }
 
     @Test
-    fun resetWhileRunning_stopsTickingAndResetsState() = runTest(testDispatcher) {
-        val vm = TimerViewModel(elapsedRealtimeMs = { testScheduler.currentTime })
+    fun resetWhileRunning_stopsTickingAndResetsState() = runTimerTest {
+        val vm = newVm({ testScheduler.currentTime })
         vm.configure(minMinutes = 1, maxMinutes = 2)
 
         vm.start()
@@ -184,8 +206,8 @@ class TimerViewModelTest {
     }
 
     @Test
-    fun configureWithSameThresholds_preservesRunningTimerAcrossRotation() = runTest(testDispatcher) {
-        val vm = TimerViewModel(elapsedRealtimeMs = { testScheduler.currentTime })
+    fun configureWithSameThresholds_preservesRunningTimerAcrossRotation() = runTimerTest {
+        val vm = newVm({ testScheduler.currentTime })
         vm.configure(minMinutes = 1, maxMinutes = 2)
 
         vm.start()
@@ -203,8 +225,8 @@ class TimerViewModelTest {
     }
 
     @Test
-    fun configureWithDifferentThresholds_resetsTimer() = runTest(testDispatcher) {
-        val vm = TimerViewModel(elapsedRealtimeMs = { testScheduler.currentTime })
+    fun configureWithDifferentThresholds_resetsTimer() = runTimerTest {
+        val vm = newVm({ testScheduler.currentTime })
         vm.configure(minMinutes = 1, maxMinutes = 2)
 
         vm.start()
@@ -220,9 +242,9 @@ class TimerViewModelTest {
     }
 
     @Test
-    fun syncElapsed_catchesUpAfterDozeOrBackgroundJump() = runTest(testDispatcher) {
+    fun syncElapsed_catchesUpAfterDozeOrBackgroundJump() = runTimerTest {
         var nowMs = 0L
-        val vm = TimerViewModel(elapsedRealtimeMs = { nowMs })
+        val vm = newVm({ nowMs })
         vm.configure(minMinutes = 1, maxMinutes = 2)
 
         val alerts = mutableListOf<TimerPhase>()
@@ -244,8 +266,8 @@ class TimerViewModelTest {
     }
 
     @Test
-    fun zeroMinuteDuration_handlesEdgeCaseAndAlertsAgainAfterReset() = runTest(testDispatcher) {
-        val vm = TimerViewModel(elapsedRealtimeMs = { testScheduler.currentTime })
+    fun zeroMinuteDuration_handlesEdgeCaseAndAlertsAgainAfterReset() = runTimerTest {
+        val vm = newVm({ testScheduler.currentTime })
         vm.configure(minMinutes = 0, maxMinutes = 0)
 
         val alerts = mutableListOf<TimerPhase>()
@@ -267,7 +289,7 @@ class TimerViewModelTest {
 
     @Test
     fun toggleUiVisibility_flipsVisibilityFlag() {
-        val vm = TimerViewModel(elapsedRealtimeMs = { 0L })
+        val vm = newVm({ 0L })
         assertTrue(vm.uiState.value.isUiVisible)
 
         vm.toggleUiVisibility()

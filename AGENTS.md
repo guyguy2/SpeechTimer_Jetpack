@@ -4,7 +4,7 @@ This file provides guidance to AI coding agents when working with code in this r
 
 ## Project
 
-Toastmasters speech timer (Android, single `app` module). Kotlin, Jetpack Compose + Material3, Room, DataStore, Koin. `minSdk 31`, `compileSdk`/`targetSdk 36`, JVM 17. Source root: `app/src/main/java/com/happypuppy/toastmasterstimer`.
+Toastmasters speech timer (Android, single `app` module). Kotlin, Jetpack Compose + Material3, Room, DataStore, Koin. `minSdk 31`, `compileSdk 37.1` (`release(37) { minorApiLevel = 1 }`, needed by Compose BOM 2026.11.01), `targetSdk 36`, JVM 17. Source root: `app/src/main/java/com/happypuppy/toastmasterstimer`.
 
 ## Commands
 
@@ -16,7 +16,9 @@ Toastmasters speech timer (Android, single `app` module). Kotlin, Jetpack Compos
 ./gradlew lintRelease bundleRelease -PversionCode=N -PversionName=X.Y.Z        # release AAB (needs signing config)
 ```
 
-CI uses JDK 21 (Temurin). Tests are JVM unit tests only (`app/src/test`, with `isReturnDefaultValues = true`, `MainDispatcherRule`, and `FakeSpeakerDao`); `androidTest` is compiled in CI (`assembleDebugAndroidTest`) but has no tests yet and is not run.
+CI uses JDK 21 (Temurin). CI runs the JVM unit tests and compiles `androidTest` (`assembleDebugAndroidTest`) but does not run the instrumented tests; they are run locally (see Testing).
+
+JDK for local builds: this repo has no daemon JVM pin, so Gradle uses `JAVA_HOME`. The gates for the Wave 0/1 work all ran on JDK 17 (`JAVA_HOME=<jdk17> ./gradlew ...`). Observed on 2026-11-23: on Gradle 9.9.2, `testDebugUnitTest` also succeeded under the Android Studio JBR 25.0.3 and OpenJDK 27.0.1.1 (only that task was tried; lint, assemble and release were run on JDK 17 only).
 
 Use the `android` CLI as needed for Android workflows (`android --help` / `android <cmd> --help`) — e.g. `android run` / `install`, `emulator` / `device`, `preview` (render Compose `@Preview`s without a device), `screen` / `layout` / `input`, `analyze` (APK/AAB inspection), `sdk` / `info`, and `docs`.
 
@@ -29,7 +31,9 @@ Use the `android` CLI as needed for Android workflows (`android --help` / `andro
 - **Timer logic** is split into two layers:
   - `util/TimerThresholds.kt`: pure threshold math. Green starts at min, red at max, yellow at the midpoint, and `maxDurationSeconds` is `redSeconds + 2` for the progress bar. `TimerPhase` is `BEFORE_GREEN/GREEN/YELLOW/RED`.
   - `ui/screens/TimerViewModel.kt`: drives the clock. Takes an injectable `elapsedRealtimeMs` lambda (defaults to `SystemClock.elapsedRealtime`) so tests can fake time. Elapsed time is computed from a monotonic clock (`accumulatedMs` + delta since `startedAtMs`), not by counting ticks, so it must not drift or lose sub-second progress on pause/resume. The tick loop only triggers `syncElapsed()`. Phase changes are emitted once each through `phaseAlerts` (a `SharedFlow`), which `TimerScreen` collects to fire vibration/sound.
-  - `TimerScreen` also manages `LocalView.current.keepScreenOn` while running, draws the animated phase color before `innerPadding` for edge-to-edge coverage, and stops any active `Ringtone` on reset/dispose.
+  - `TimerViewModel` mirrors `accumulatedMs`, `startedAtMs`, the phase and the thresholds into a `SavedStateHandle` (a required constructor parameter, injected by Koin) and rebuilds from it, so a timer survives process death (not a reboot or swipe-away). A restored state sets `isRestored`, which `TimerScreen` shows as "Timer restored" until the user acts. Restart takes a `snapshot()` and offers Undo (`undoReset`) through a snackbar.
+  - `alert/AlertPlayer.kt` is the interface plus `dispatchPhaseAlert` (which cue for which phase and setting); `AndroidAlertPlayer` plays vibration with `VibrationAttributes` USAGE_ALARM (`AudioAttributes` below API 33) and sound with alarm `AudioAttributes` plus transient audio focus. JVM tests use `FakeAlertPlayer`.
+  - `TimerScreen` also manages `LocalView.current.keepScreenOn` while running, draws the animated phase color before `innerPadding` for edge-to-edge coverage, hosts its snackbar in `Scaffold(snackbarHost = ...)` (a host placed under the content overlay cannot be tapped), asks before leaving with time on the clock, and stops the active sound on reset/dispose. Phase and hint colors live in `ui/screens/PhaseColors.kt` and are covered by a WCAG contrast test.
 - **Custom speech durations**: `util/CustomSpeechRange.kt` clamps start/end so `1 <= start <= 59` and `start < end <= 60`, keeping thresholds distinct. Use its helpers rather than clamping in UI code.
 - **Persistence**:
   - Room: a single `speakers` table (saved speech results). Entity, DAO, `AppDatabase` and `SpeakerRepository` all live in `data/database/Database.kt`, but the **package is `data.database.repository`**, not `data.database`. `DateConverters` lives separately in `data/repository/DateConverters.kt` (`data.repository` package).
@@ -37,6 +41,31 @@ Use the `android` CLI as needed for Android workflows (`android --help` / `andro
 - **Screen ViewModels & utilities**:
   - `SpeechTimerViewModel` wraps the repository, exposes `uiState` plus one-shot `events` (`SpeakerEvent`), and routes DB writes through `runMutation` so failures become `uiState.error` instead of crashes.
   - `AppVersionInfo` (`util/Utils.kt`) reads version info via `PackageManager` instead of `BuildConfig` (`buildConfig` is not enabled).
+
+## Alerts are foreground-only
+
+Owner decision: no foreground service, no exact alarms, no notification permission. Cues are only promised while the timer screen is open; Settings and the timer screen say so. On return after a phase was crossed while away, `TimerViewModel.onAppForegrounded` fires one catch-up cue (skipped when a live alert for that phase fired within the last 2 s, for example when a frozen process wakes up).
+
+Observed on an API 37 emulator, 2026-11-23: about 60 to 90 s after leaving the foreground the process becomes `cached=true isFrozen=true` (`adb shell dumpsys activity processes`). A GREEN cue fired live with usage ALARM, later cues only arrived when the app was reopened. USAGE_ALARM alone does not make background cues reliable; the catch-up cue covers it.
+
+Manual check of vibration attributes: start a 1-2 min timer, press Home, wait past 60 s, then run `adb -s emulator-NNNN shell dumpsys vibrator_manager` and look at the `com.happypuppy.toastmasterstimer` entries under "Recent vibrations". Expect `usage: ALARM` and a status other than `ignored_background` (before the AlertPlayer change it was `ignored_background`, `usage: TOUCH`). Check restore with `adb -s emulator-NNNN shell am kill com.happypuppy.toastmasterstimer` while the app is backgrounded, then relaunch: the time is restored with "Timer restored".
+
+## Testing
+
+JVM unit tests (`app/src/test`, `./gradlew testDebugUnitTest`, 107 tests): `TimerContractTest`, `TimerThresholdsTest`, `CustomSpeechRangeTest`, `FormatTimeTest`, `TimerViewModelTest`, `TimerViewModelEdgeCasesTest`, `TimerViewModelRestoreTest`, `PhaseAlertDispatchTest`, `PhaseTextContrastTest`, `SpeechTimerViewModelTest`, `SpeechTimerViewModelFailureModesTest`, `SortSpeakersTest`, `AppThemeTest`, `DateConvertersTest`. Helpers: `MainDispatcherRule`, `FakeSpeakerDao`, `FakeAlertPlayer`.
+
+Every `TimerViewModel` test must create its ViewModels through the `newVm` helper and wrap the body in `runTimerTest` (see `TimerViewModelEdgeCasesTest`). `start()` leaves an unbounded tick loop; if an assertion fails before `reset()`, `runTest` drains virtual time forever and the test hangs instead of failing. A `runTest(timeout = ...)` does not help (verified: it still hung); the helper resets every ViewModel in a `finally` block. Pre-filled `SavedStateHandle` plus the fake clock covers restore logic; a real kill is the manual `am kill` step above.
+
+Instrumented tests (`app/src/androidTest`, 18 tests: `TimerFlowsTest` 15, `DataStoreManagerTest` 3) drive the real app with the real Koin graph and Room DB and assert on visible text and content descriptions only. They wipe saved speeches and write settings: emulator only, never a physical device. Do not run a bare `./gradlew connectedDebugAndroidTest`: it installs on every attached device. Use the explicit form on one emulator:
+
+```bash
+./gradlew assembleDebug assembleDebugAndroidTest
+adb -s emulator-NNNN install -r -t app/build/outputs/apk/debug/app-debug.apk
+adb -s emulator-NNNN install -r -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb -s emulator-NNNN shell am instrument -w -r com.happypuppy.toastmasterstimer.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+`emulator-NNNN` is the serial of your own emulator: replace NNNN with its port. Parallel agents or sessions use distinct ports (5554 and 5556 in the Tech Lead's runs) and must only touch their own. When two agents or sessions share the AVD, start every instance with `-read-only` (`emulator -avd Pixel_10 -port NNNN -read-only -no-window -no-audio -no-snapshot-save`); without it the second start fails with "Another emulator instance is running". A read-only AVD starts clean each time, so the app has to be installed again. Stylus handwriting (the Gboard overlay) can swallow typed text; `adb shell settings put secure stylus_handwriting_enabled 0` turns it off for the session.
 
 ## Database migrations
 
