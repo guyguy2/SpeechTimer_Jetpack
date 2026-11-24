@@ -19,6 +19,12 @@
     <string name="timer_action_restart">Restart timer</string>
     <string name="timer_action_save">Save result</string>
 
+    <!-- Accessible names of the From and To steppers on the custom range screen -->
+    <string name="stepper_increase_minimum">Increase minimum minutes</string>
+    <string name="stepper_decrease_minimum">Decrease minimum minutes</string>
+    <string name="stepper_increase_maximum">Increase maximum minutes</string>
+    <string name="stepper_decrease_maximum">Decrease maximum minutes</string>
+
     <!-- Shown under the digits while the timer is paused -->
     <string name="timer_paused">Paused</string>
 

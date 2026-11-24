@@ -277,9 +277,9 @@ class TimerFlowsTest {
         rule.waitForText("Speech will last between 8 and 10 minutes")
 
         // "From" up: 9 (end stays 10), then 10 (end pushed to 11).
-        rule.onAllNodesWithText("▲")[0].performClick()
+        rule.onNodeWithContentDescription("Increase minimum minutes").performClick()
         rule.waitForText("Speech will last between 9 and 10 minutes")
-        rule.onAllNodesWithText("▲")[0].performClick()
+        rule.onNodeWithContentDescription("Increase minimum minutes").performClick()
         rule.waitForText("Speech will last between 10 and 11 minutes")
 
         rule.onNodeWithText("Start Timer").performClick()

@@ -13,6 +13,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -22,7 +25,9 @@ fun MinutePicker(
     label: String,
     value: Int,
     onValueChange: (Int) -> Unit,
-    range: IntRange
+    range: IntRange,
+    increaseDescription: String,
+    decreaseDescription: String
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally
@@ -56,10 +61,13 @@ fun MinutePicker(
                     modifier = Modifier
                         .size(48.dp)
                         .align(Alignment.CenterHorizontally)
+                        .semantics { contentDescription = increaseDescription }
                 ) {
+                    // The glyph is decoration; the button is named by its description.
                     Text(
                         text = "▲",
-                        fontSize = 24.sp
+                        fontSize = 24.sp,
+                        modifier = Modifier.clearAndSetSemantics { }
                     )
                 }
 
@@ -79,10 +87,12 @@ fun MinutePicker(
                     modifier = Modifier
                         .size(48.dp)
                         .align(Alignment.CenterHorizontally)
+                        .semantics { contentDescription = decreaseDescription }
                 ) {
                     Text(
                         text = "▼",
-                        fontSize = 24.sp
+                        fontSize = 24.sp,
+                        modifier = Modifier.clearAndSetSemantics { }
                     )
                 }
             }
