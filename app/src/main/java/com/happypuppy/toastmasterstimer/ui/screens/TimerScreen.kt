@@ -185,7 +185,7 @@ fun TimerScreen(
             )
         }
     ) { innerPadding ->
-        var showDialog by remember { mutableStateOf(false) }
+        var showDialog by rememberSaveable { mutableStateOf(false) }
 
         TimerFace(
             phase = currentPhase,

@@ -41,6 +41,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
@@ -66,7 +67,7 @@ const val FOREGROUND_ONLY_NOTE =
 @Composable
 fun SettingsScreen(navController: NavHostController) {
     val dataStoreManager = koinInject<DataStoreManager>()
-    var showAboutDialog by remember { mutableStateOf(false) }
+    var showAboutDialog by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         topBar = {

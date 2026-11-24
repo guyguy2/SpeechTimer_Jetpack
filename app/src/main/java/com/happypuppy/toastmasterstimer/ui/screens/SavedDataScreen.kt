@@ -45,6 +45,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -94,14 +95,14 @@ fun SavedDataScreen(
     val error = uiState.error
     val context = LocalContext.current
 
-    var showSortOptions by remember { mutableStateOf(false) }
+    var showSortOptions by rememberSaveable { mutableStateOf(false) }
     var currentSortOption by remember { mutableStateOf(SortOption.DATE_NEWEST) }
 
     val sortedSpeakers = remember(speakers, currentSortOption) {
         sortSpeakers(speakers, currentSortOption)
     }
 
-    var showConfirmDialog by remember { mutableStateOf(false) }
+    var showConfirmDialog by rememberSaveable { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 

@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -25,7 +26,7 @@ fun InputDialog(
     title: String = "Enter Name",
     initialText: String = ""
 ) {
-    var text by remember { mutableStateOf(initialText) }
+    var text by rememberSaveable { mutableStateOf(initialText) }
     val trimmed = text.trim()
     val focusRequester = remember { FocusRequester() }
     // Focus the name field as soon as the dialog opens, which also brings up the keyboard.
