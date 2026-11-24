@@ -35,7 +35,7 @@ class TimerRouteNavigationTest {
     private lateinit var navController: NavHostController
     private var fromArguments: TimerRoute? = null
     private var fromHandle: TimerRoute? = null
-    private var viewModelThresholds: TimerThresholds? = null
+    private var timerViewModel: TimerViewModel? = null
 
     @Composable
     private fun Host() {
@@ -45,8 +45,7 @@ class TimerRouteNavigationTest {
             composable<TimerRoute> { entry ->
                 fromArguments = entry.toRoute<TimerRoute>()
                 fromHandle = entry.savedStateHandle.toRoute<TimerRoute>()
-                viewModelThresholds =
-                    koinViewModel<TimerViewModel>(viewModelStoreOwner = entry).uiState.value.thresholds
+                timerViewModel = koinViewModel<TimerViewModel>(viewModelStoreOwner = entry)
                 Text("timer")
             }
         }
@@ -55,7 +54,7 @@ class TimerRouteNavigationTest {
     private fun roundTrip(route: TimerRoute) {
         fromArguments = null
         fromHandle = null
-        viewModelThresholds = null
+        timerViewModel = null
         rule.runOnUiThread { navController.navigate(route) }
         rule.waitForIdle()
         assertEquals("from arguments", route, fromArguments)
@@ -63,7 +62,7 @@ class TimerRouteNavigationTest {
         assertEquals(
             "ViewModel range",
             TimerThresholds(route.minMinutes, route.maxMinutes),
-            viewModelThresholds
+            timerViewModel?.uiState?.value?.thresholds
         )
         rule.runOnUiThread { navController.popBackStack() }
         rule.waitForIdle()
