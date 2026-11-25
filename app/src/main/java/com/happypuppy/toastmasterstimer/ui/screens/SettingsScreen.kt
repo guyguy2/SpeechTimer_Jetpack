@@ -4,6 +4,7 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
@@ -42,8 +44,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
@@ -60,6 +62,7 @@ import com.happypuppy.toastmasterstimer.alert.AlertVibration
 import com.happypuppy.toastmasterstimer.alert.AndroidAlertPlayer
 import com.happypuppy.toastmasterstimer.data.preferences.AppTheme
 import com.happypuppy.toastmasterstimer.data.preferences.DataStoreManager
+import com.happypuppy.toastmasterstimer.ui.layout.ADAPTIVE_CONTENT_MAX_WIDTH
 import com.happypuppy.toastmasterstimer.util.AppVersionInfo
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -85,35 +88,42 @@ fun SettingsScreen(navController: NavHostController) {
             )
         }
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(innerPadding),
+            contentAlignment = Alignment.TopCenter
         ) {
-            ThemeSelector(dataStoreManager)
+            Column(
+                modifier = Modifier
+                    .widthIn(max = ADAPTIVE_CONTENT_MAX_WIDTH)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                ThemeSelector(dataStoreManager)
 
-            DynamicColorSetting(dataStoreManager)
+                DynamicColorSetting(dataStoreManager)
 
-            HorizontalDivider()
+                HorizontalDivider()
 
-            VibrationSetting(dataStoreManager)
+                VibrationSetting(dataStoreManager)
 
-            SoundSetting(dataStoreManager)
+                SoundSetting(dataStoreManager)
 
-            Text(
-                text = stringResource(R.string.settings_foreground_only_note),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+                Text(
+                    text = stringResource(R.string.settings_foreground_only_note),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
-            HorizontalDivider()
+                HorizontalDivider()
 
-            RateAppSetting()
+                RateAppSetting()
 
-            AboutSetting(onClick = { showAboutDialog = true })
+                AboutSetting(onClick = { showAboutDialog = true })
+            }
         }
 
         if (showAboutDialog) {

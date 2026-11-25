@@ -4,6 +4,7 @@ import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -41,8 +42,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
@@ -172,10 +180,40 @@ fun TimerScreen(
 
     // Leaving the screen discards the timer, so ask first once there is time on the clock
     var showLeaveDialog by rememberSaveable { mutableStateOf(false) }
+    var showDialog by rememberSaveable { mutableStateOf(false) }
     BackHandler(enabled = ticks > 0) { showLeaveDialog = true }
 
     // Restart resets at once; the snackbar offers Undo, which is dropped as soon as the timer moves on
     var undoJob by remember { mutableStateOf<Job?>(null) }
+
+    val triggerRestart = {
+        alertPlayer.stopSound()
+        val snapshot = timerViewModel.snapshot()
+        timerViewModel.reset()
+        undoJob?.cancel()
+        undoJob = scope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = resources.getString(R.string.timer_reset_snackbar),
+                actionLabel = resources.getString(R.string.saved_undo),
+                duration = SnackbarDuration.Long
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                timerViewModel.undoReset(snapshot)
+            }
+        }
+    }
+
+    val triggerToggleRunning = {
+        undoJob?.cancel()
+        timerViewModel.toggleRunning()
+    }
+
+    val screenFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(showDialog, showLeaveDialog) {
+        if (!showDialog && !showLeaveDialog) {
+            runCatching { screenFocusRequester.requestFocus() }
+        }
+    }
 
     val topBarContentColor by animateColorAsState(
         targetValue = phasePalette.onBackground,
@@ -183,6 +221,32 @@ fun TimerScreen(
     )
 
     Scaffold(
+        modifier = Modifier
+            .focusRequester(screenFocusRequester)
+            .focusable()
+            .onPreviewKeyEvent { keyEvent ->
+                if (showDialog || showLeaveDialog) return@onPreviewKeyEvent false
+                if (keyEvent.type != KeyEventType.KeyDown || keyEvent.nativeKeyEvent.repeatCount != 0) {
+                    return@onPreviewKeyEvent false
+                }
+                when (keyEvent.key) {
+                    Key.Spacebar -> {
+                        triggerToggleRunning()
+                        true
+                    }
+                    Key.R -> if (ticks > 0) {
+                        triggerRestart()
+                        true
+                    } else {
+                        false
+                    }
+                    Key.Escape -> {
+                        if (ticks > 0) showLeaveDialog = true else navController.navigateUp()
+                        true
+                    }
+                    else -> false
+                }
+            },
         containerColor = phasePalette.background,
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
@@ -231,8 +295,6 @@ fun TimerScreen(
             }
         }
     ) { innerPadding ->
-        var showDialog by rememberSaveable { mutableStateOf(false) }
-
         TimerFace(
             phase = currentPhase,
             ticks = ticks,
@@ -241,26 +303,8 @@ fun TimerScreen(
             isRestored = timerState.isRestored,
             thresholds = thresholds,
             innerPadding = innerPadding,
-            onRestart = {
-                alertPlayer.stopSound()
-                val snapshot = timerViewModel.snapshot()
-                timerViewModel.reset()
-                undoJob?.cancel()
-                undoJob = scope.launch {
-                    val result = snackbarHostState.showSnackbar(
-                        message = resources.getString(R.string.timer_reset_snackbar),
-                        actionLabel = resources.getString(R.string.saved_undo),
-                        duration = SnackbarDuration.Long
-                    )
-                    if (result == SnackbarResult.ActionPerformed) {
-                        timerViewModel.undoReset(snapshot)
-                    }
-                }
-            },
-            onToggleRunning = {
-                undoJob?.cancel()
-                timerViewModel.toggleRunning()
-            },
+            onRestart = triggerRestart,
+            onToggleRunning = triggerToggleRunning,
             onSave = { showDialog = true },
             onToggleUiVisibility = { timerViewModel.toggleUiVisibility() }
         )

@@ -74,6 +74,8 @@
     <string name="common_dismiss">Dismiss</string>
     <string name="common_back">Back</string>
     <string name="common_ok">OK</string>
+    <string name="common_edit">Edit</string>
+    <string name="common_delete">Delete</string>
 
     <!-- Navigation -->
     <string name="nav_settings">Settings</string>
@@ -89,6 +91,20 @@
     <string name="speech_type_custom">Custom Speech</string>
     <string name="timer_title_preset">%1$s (%2$d TO %3$d MIN)</string>
     <string name="timer_title_custom">%1$s (%2$d - %3$d min)</string>
+
+    <!-- Main screen preset cards, recent speeches, and timing guide -->
+    <string name="preset_title_table_topics">Table Topics</string>
+    <string name="preset_title_evaluation">Evaluation</string>
+    <string name="preset_title_ice_breaker">Ice Breaker</string>
+    <string name="preset_title_speech">Prepared Speech</string>
+    <string name="preset_duration_range">%1$d&#8211;%2$d min</string>
+    <string name="preset_card_cd">%1$s, %2$s. Green at %3$s, yellow at %4$s, red at %5$s.</string>
+    <string name="main_recent_title">Recent</string>
+    <string name="main_view_all">View all</string>
+    <string name="main_timing_guide_title">Timing color guide</string>
+    <string name="main_timing_guide_green">Green &#8212; Minimum time reached</string>
+    <string name="main_timing_guide_yellow">Yellow &#8212; Midpoint, wrap up soon</string>
+    <string name="main_timing_guide_red">Red &#8212; Maximum time reached</string>
 
     <!-- Custom speech screen -->
     <string name="custom_speech_title">Set Speech Duration</string>
@@ -132,7 +148,7 @@
     <string name="saved_share_all_cd">Share All Data</string>
     <string name="saved_clear_all_cd">Clear All Data</string>
     <string name="saved_clear_all_title">Clear All Data</string>
-    <string name="saved_clear_all_message">Are you sure you want to delete all saved speech data? This action cannot be undone.</string>
+    <string name="saved_clear_all_message">Are you sure you want to delete all saved speech data?</string>
     <string name="saved_clear_all_confirm">Delete All</string>
     <string name="saved_sort_dialog_title">Sort By</string>
     <string name="saved_sort_date_newest">Date (Newest first)</string>

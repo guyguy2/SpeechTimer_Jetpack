@@ -24,7 +24,7 @@ class StartupInstrumentedTest {
         createAndroidComposeRule<MainActivity>()
 
     private fun mainScreenShown() =
-        rule.onAllNodes(hasText("TABLE TOPICS (1 TO 2 MIN)"), useUnmergedTree = true)
+        rule.onAllNodes(hasText("Table Topics"), useUnmergedTree = true)
             .fetchSemanticsNodes().isNotEmpty()
 
     @Test

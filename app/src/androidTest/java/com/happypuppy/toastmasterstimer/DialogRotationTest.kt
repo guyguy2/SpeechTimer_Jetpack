@@ -63,8 +63,8 @@ class DialogRotationTest {
 
     @Test
     fun saveDialog_andTheTypedName_surviveRotation() {
-        rule.waitForText("TABLE TOPICS (1 TO 2 MIN)")
-        rule.onNodeWithText("TABLE TOPICS (1 TO 2 MIN)").performClick()
+        rule.waitForText("Table Topics")
+        rule.onNodeWithText("Table Topics").performClick()
         rule.waitForText("00:00")
         rule.onNodeWithContentDescription("Start timer").performClick()
         rule.waitForText("00:01")
@@ -81,7 +81,7 @@ class DialogRotationTest {
     @Test
     fun sortDialog_survivesRotation() {
         runBlocking { repository.insertSpeaker(Speaker(name = "Ann", speechType = "SPEECH", duration = "05:10")) }
-        rule.waitForText("TABLE TOPICS (1 TO 2 MIN)")
+        rule.waitForText("Table Topics")
         rule.onNodeWithText("Saved Data").performClick()
         rule.waitForText("Ann")
         rule.onNodeWithContentDescription("Sort Options").performClick()
@@ -95,7 +95,7 @@ class DialogRotationTest {
     @Test
     fun clearAllDialog_survivesRotation() {
         runBlocking { repository.insertSpeaker(Speaker(name = "Ann", speechType = "SPEECH", duration = "05:10")) }
-        rule.waitForText("TABLE TOPICS (1 TO 2 MIN)")
+        rule.waitForText("Table Topics")
         rule.onNodeWithText("Saved Data").performClick()
         rule.waitForText("Ann")
         rule.onNodeWithContentDescription("Clear All Data").performClick()
@@ -109,7 +109,7 @@ class DialogRotationTest {
 
     @Test
     fun aboutDialog_survivesRotation() {
-        rule.waitForText("TABLE TOPICS (1 TO 2 MIN)")
+        rule.waitForText("Table Topics")
         rule.onNodeWithContentDescription("Settings").performClick()
         rule.waitForText("About")
         rule.onNodeWithText("About").performClick()
@@ -123,7 +123,7 @@ class DialogRotationTest {
     @Test
     fun editDialog_andTypedName_surviveRotation() {
         runBlocking { repository.insertSpeaker(Speaker(name = "Ann", speechType = "SPEECH", duration = "05:10")) }
-        rule.waitForText("TABLE TOPICS (1 TO 2 MIN)")
+        rule.waitForText("Table Topics")
         rule.onNodeWithText("Saved Data").performClick()
         rule.waitForText("Ann")
         rule.onNodeWithContentDescription("Edit Ann, SPEECH").performClick()
@@ -146,7 +146,7 @@ class DialogRotationTest {
                 Speaker(name = "Zoe", speechType = "SPEECH", duration = "05:20", createdAt = Date(2_000L))
             )
         }
-        rule.waitForText("TABLE TOPICS (1 TO 2 MIN)")
+        rule.waitForText("Table Topics")
         rule.onNodeWithText("Saved Data").performClick()
         rule.waitForText("Zoe")
         rule.onNodeWithContentDescription("Sort Options").performClick()

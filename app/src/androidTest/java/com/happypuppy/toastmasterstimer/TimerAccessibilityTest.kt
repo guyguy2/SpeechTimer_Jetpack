@@ -42,8 +42,8 @@ class TimerAccessibilityTest {
         rule.waitUntil(10_000) { rule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() }
 
     private fun openTimer() {
-        waitForText("TABLE TOPICS (1 TO 2 MIN)")
-        rule.onNodeWithText("TABLE TOPICS (1 TO 2 MIN)").performClick()
+        waitForText("Table Topics")
+        rule.onNodeWithText("Table Topics").performClick()
         waitForText("00:00")
     }
 

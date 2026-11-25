@@ -4,10 +4,15 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import androidx.annotation.StringRes
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,7 +21,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -43,31 +52,44 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.happypuppy.toastmasterstimer.R
 import com.happypuppy.toastmasterstimer.data.database.repository.Speaker
 import com.happypuppy.toastmasterstimer.data.preferences.DataStoreManager
 import com.happypuppy.toastmasterstimer.navigation.Screen
 import com.happypuppy.toastmasterstimer.ui.components.InputDialog
-import com.happypuppy.toastmasterstimer.ui.components.SpeechTimerBottomBar
+import com.happypuppy.toastmasterstimer.ui.components.SwipeToDeleteSpeakerItem
 import com.happypuppy.toastmasterstimer.ui.components.speakerSpeechTypeDisplayName
+import com.happypuppy.toastmasterstimer.ui.layout.ADAPTIVE_CONTENT_MAX_WIDTH
+import com.happypuppy.toastmasterstimer.ui.layout.ADAPTIVE_GRID_MIN_CELL_WIDTH
+import com.happypuppy.toastmasterstimer.ui.layout.rememberAdaptiveLayoutSpec
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
@@ -103,13 +125,15 @@ fun SavedDataScreen(
     navController: NavHostController,
     viewModel: SpeechTimerViewModel = koinViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val speakers = uiState.speakers
     val isLoading = uiState.isLoading
     val error = uiState.error
     val context = LocalContext.current
     val resources = LocalResources.current
     val dataStoreManager = koinInject<DataStoreManager>()
+    val isVibrationEnabled by dataStoreManager.vibrateEnabledFlow.collectAsStateWithLifecycle(initialValue = true)
+    val layoutSpec = rememberAdaptiveLayoutSpec()
 
     var showSortOptions by rememberSaveable { mutableStateOf(false) }
     var currentSortOption by rememberSaveable { mutableStateOf(SortOption.DATE_NEWEST) }
@@ -127,38 +151,108 @@ fun SavedDataScreen(
     var showConfirmDialog by rememberSaveable { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val errorSnackbarState = remember { ErrorSnackbarState() }
+    var isEventSnackbarActive by remember { mutableStateOf(false) }
+    var undoDismissedByEvent by remember { mutableStateOf(false) }
+    var retryRestoreAttempt by remember { mutableIntStateOf(0) }
 
-    // Show delete confirmations (with Undo for single-row delete) only after the database write succeeds
-    LaunchedEffect(viewModel) {
+    // Show delete confirmations with Undo. collectLatest cancels any superseded snackbar via
+    // CancellationException so SnackbarResult.Dismissed only clears the multi-undo stack on real
+    // timeout or user dismissal.
+    LaunchedEffect(viewModel, snackbarHostState, resources) {
         viewModel.events.collectLatest { event ->
-            when (event) {
-                is SpeakerEvent.Deleted -> {
-                    snackbarHostState.currentSnackbarData?.dismiss()
-                    val result = snackbarHostState.showSnackbar(
-                        message = resources.getString(R.string.saved_deleted_snackbar, event.speakerName),
-                        actionLabel = resources.getString(R.string.saved_undo),
-                        duration = SnackbarDuration.Long
-                    )
-                    if (result == SnackbarResult.ActionPerformed) {
-                        viewModel.restoreSpeaker(event.speaker)
+            isEventSnackbarActive = true
+            undoDismissedByEvent = false
+            try {
+                errorSnackbarState.activeToken?.let { token ->
+                    errorSnackbarState.supersededToken = token
+                    viewModel.clearError()
+                }
+                snackbarHostState.currentSnackbarData?.dismiss()
+                val message = when (event) {
+                    is SpeakerEvent.Deleted ->
+                        resources.getString(R.string.saved_deleted_snackbar, event.speakerName)
+                    SpeakerEvent.AllDeleted ->
+                        resources.getString(R.string.saved_all_deleted_snackbar)
+                }
+                val result = snackbarHostState.showSnackbar(
+                    message = message,
+                    actionLabel = resources.getString(R.string.saved_undo),
+                    duration = SnackbarDuration.Long
+                )
+                when (result) {
+                    SnackbarResult.ActionPerformed -> {
+                        if (viewModel.uiState.value.error == SpeakerError.RestoreFailed) {
+                            viewModel.clearError()
+                            retryRestoreAttempt++
+                        }
+                        viewModel.undoDelete()
+                    }
+                    SnackbarResult.Dismissed -> {
+                        undoDismissedByEvent = true
+                        viewModel.dismissUndoSnackbar()
                     }
                 }
-
-                SpeakerEvent.AllDeleted -> {
-                    snackbarHostState.currentSnackbarData?.dismiss()
-                    snackbarHostState.showSnackbar(resources.getString(R.string.saved_all_deleted_snackbar))
-                }
+            } finally {
+                isEventSnackbarActive = false
             }
         }
     }
 
     // Surface transient errors without hiding existing saved speeches
-    LaunchedEffect(error) {
-        if (error != null && sortedSpeakers.isNotEmpty()) {
-            snackbarHostState.showSnackbar(
-                resources.getString(R.string.saved_error_prefix, error.message.asString(context))
-            )
-            viewModel.clearError()
+    LaunchedEffect(
+        error,
+        uiState.canUndo,
+        sortedSpeakers.isNotEmpty(),
+        retryRestoreAttempt,
+        isEventSnackbarActive,
+        undoDismissedByEvent
+    ) {
+        if (error == null) {
+            undoDismissedByEvent = false
+            return@LaunchedEffect
+        }
+        if (sortedSpeakers.isNotEmpty() && !isEventSnackbarActive) {
+            val canRetryRestore =
+                error == SpeakerError.RestoreFailed &&
+                    uiState.canUndo &&
+                    viewModel.uiState.value.canUndo &&
+                    !undoDismissedByEvent
+            val token = Any()
+            errorSnackbarState.activeToken = token
+            var wasSuperseded = false
+            val result = try {
+                snackbarHostState.showSnackbar(
+                    message = resources.getString(R.string.saved_error_prefix, error.message.asString(context)),
+                    actionLabel = if (canRetryRestore) resources.getString(R.string.saved_undo) else null,
+                    duration = if (canRetryRestore) SnackbarDuration.Long else SnackbarDuration.Short
+                )
+            } finally {
+                if (errorSnackbarState.activeToken === token) {
+                    errorSnackbarState.activeToken = null
+                }
+                if (errorSnackbarState.supersededToken === token) {
+                    wasSuperseded = true
+                    errorSnackbarState.supersededToken = null
+                }
+            }
+            if (canRetryRestore) {
+                when (result) {
+                    SnackbarResult.ActionPerformed -> {
+                        viewModel.clearError()
+                        retryRestoreAttempt++
+                        viewModel.undoDelete()
+                    }
+                    SnackbarResult.Dismissed -> {
+                        if (!wasSuperseded && viewModel.uiState.value.error == SpeakerError.RestoreFailed) {
+                            viewModel.dismissUndoSnackbar()
+                        }
+                        viewModel.clearError()
+                    }
+                }
+            } else {
+                viewModel.clearError()
+            }
         }
     }
 
@@ -206,18 +300,13 @@ fun SavedDataScreen(
                     }
                 }
             )
-        },
-        bottomBar = {
-            SpeechTimerBottomBar(
-                currentRoute = Screen.SavedDataScreen.route,
-                navController = navController
-            )
         }
     ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .padding(paddingValues),
+            contentAlignment = Alignment.TopCenter
         ) {
             if (isLoading) {
                 CircularProgressIndicator(
@@ -227,6 +316,7 @@ fun SavedDataScreen(
                 Column(
                     modifier = Modifier
                         .align(Alignment.Center)
+                        .widthIn(max = ADAPTIVE_CONTENT_MAX_WIDTH)
                         .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -236,8 +326,20 @@ fun SavedDataScreen(
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.error
                     )
-                    OutlinedButton(onClick = { viewModel.clearError() }) {
-                        Text(stringResource(R.string.common_dismiss))
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (error == SpeakerError.RestoreFailed && uiState.canUndo) {
+                            Button(onClick = { viewModel.undoDelete() }) {
+                                Text(stringResource(R.string.saved_undo))
+                            }
+                        }
+                        OutlinedButton(onClick = {
+                            if (error == SpeakerError.RestoreFailed) {
+                                viewModel.dismissUndoSnackbar()
+                            }
+                            viewModel.clearError()
+                        }) {
+                            Text(stringResource(R.string.common_dismiss))
+                        }
                     }
                 }
             } else if (sortedSpeakers.isEmpty()) {
@@ -248,7 +350,8 @@ fun SavedDataScreen(
                             launchSingleTop = true
                             restoreState = true
                         }
-                    }
+                    },
+                    modifier = Modifier.align(Alignment.Center)
                 )
             } else {
                 SpeechDataList(
@@ -267,7 +370,11 @@ fun SavedDataScreen(
                     },
                     onDeleteClick = { speaker ->
                         viewModel.deleteSpeaker(speaker)
-                    }
+                    },
+                    restoreVersions = uiState.restoreVersions,
+                    useGrid = layoutSpec.useSavedDataGrid,
+                    enableSwipeToDelete = layoutSpec.enableSwipeToDelete,
+                    isVibrationEnabled = isVibrationEnabled
                 )
             }
 
@@ -355,26 +462,75 @@ fun SavedDataScreen(
     }
 }
 
+internal const val SAVED_LIST_TAG = "saved_data_list"
+internal const val SAVED_GRID_TAG = "saved_data_grid"
+
 @Composable
 fun SpeechDataList(
     speakers: List<Speaker>,
     onEditClick: (Speaker) -> Unit,
     onShareClick: (Speaker) -> Unit,
-    onDeleteClick: (Speaker) -> Unit
+    onDeleteClick: (Speaker) -> Unit,
+    modifier: Modifier = Modifier,
+    restoreVersions: Map<Int, Int> = emptyMap(),
+    useGrid: Boolean = false,
+    enableSwipeToDelete: Boolean = true,
+    isVibrationEnabled: Boolean = true
 ) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        items(items = speakers, key = { it.id }) { speaker ->
-            SpeakerCard(
-                speaker = speaker,
-                onEditClick = { onEditClick(speaker) },
-                onShareClick = { onShareClick(speaker) },
-                onDeleteClick = { onDeleteClick(speaker) }
-            )
+    if (useGrid) {
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(minSize = ADAPTIVE_GRID_MIN_CELL_WIDTH),
+            modifier = modifier
+                .widthIn(max = ADAPTIVE_CONTENT_MAX_WIDTH)
+                .fillMaxSize()
+                .testTag(SAVED_GRID_TAG),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            gridItems(
+                items = speakers,
+                key = { speaker -> "${speaker.id}_${restoreVersions[speaker.id] ?: 0}" }
+            ) { speaker ->
+                SpeakerCard(
+                    speaker = speaker,
+                    onEditClick = { onEditClick(speaker) },
+                    onShareClick = { onShareClick(speaker) },
+                    onDeleteClick = { onDeleteClick(speaker) }
+                )
+            }
+        }
+    } else {
+        LazyColumn(
+            modifier = modifier
+                .widthIn(max = ADAPTIVE_CONTENT_MAX_WIDTH)
+                .fillMaxSize()
+                .testTag(SAVED_LIST_TAG),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(
+                items = speakers,
+                key = { speaker -> "${speaker.id}_${restoreVersions[speaker.id] ?: 0}" }
+            ) { speaker ->
+                if (enableSwipeToDelete) {
+                    SwipeToDeleteSpeakerItem(
+                        speaker = speaker,
+                        isVibrationEnabled = isVibrationEnabled,
+                        onEditClick = { onEditClick(speaker) },
+                        onShareClick = { onShareClick(speaker) },
+                        onDelete = { onDeleteClick(speaker) },
+                        restoreVersion = restoreVersions[speaker.id] ?: 0
+                    )
+                } else {
+                    SpeakerCard(
+                        speaker = speaker,
+                        onEditClick = { onEditClick(speaker) },
+                        onShareClick = { onShareClick(speaker) },
+                        onDeleteClick = { onDeleteClick(speaker) }
+                    )
+                }
+            }
         }
     }
 }
@@ -384,7 +540,8 @@ fun SpeakerCard(
     speaker: Speaker,
     onEditClick: () -> Unit,
     onShareClick: () -> Unit,
-    onDeleteClick: () -> Unit
+    onDeleteClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val locale = LocalLocale.current.platformLocale
     val dateFormat = remember(locale) {
@@ -397,9 +554,46 @@ fun SpeakerCard(
     val phase = remember(speaker.phaseReached) { parseTimerPhase(speaker.phaseReached) }
     val displaySpeechType = speakerSpeechTypeDisplayName(speaker)
 
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+    val editLabel = stringResource(R.string.common_edit)
+    val deleteLabel = stringResource(R.string.common_delete)
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        modifier = modifier
+            .fillMaxWidth()
+            .onKeyEvent { keyEvent ->
+                if (keyEvent.type == KeyEventType.KeyDown &&
+                    keyEvent.nativeKeyEvent.repeatCount == 0 &&
+                    (keyEvent.key == Key.Delete ||
+                        keyEvent.key == Key.Backspace ||
+                        keyEvent.key == Key.NumPadDelete)
+                ) {
+                    onDeleteClick()
+                    true
+                } else {
+                    false
+                }
+            }
+            .focusable(interactionSource = interactionSource)
+            .semantics(mergeDescendants = true) {
+                customActions = listOf(
+                    CustomAccessibilityAction(editLabel) {
+                        onEditClick()
+                        true
+                    },
+                    CustomAccessibilityAction(deleteLabel) {
+                        onDeleteClick()
+                        true
+                    }
+                )
+            },
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        border = if (isFocused) {
+            BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+        } else {
+            null
+        }
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -492,9 +686,13 @@ fun SpeakerCard(
 }
 
 @Composable
-fun EmptyStateContent(onAddSpeech: () -> Unit) {
+fun EmptyStateContent(
+    onAddSpeech: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Column(
-        modifier = Modifier
+        modifier = modifier
+            .widthIn(max = ADAPTIVE_CONTENT_MAX_WIDTH)
             .fillMaxSize()
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -539,6 +737,11 @@ fun EmptyStateContent(onAddSpeech: () -> Unit) {
             Text(stringResource(R.string.saved_empty_add_cta))
         }
     }
+}
+
+private class ErrorSnackbarState {
+    var activeToken: Any? = null
+    var supersededToken: Any? = null
 }
 
 private fun launchShareChooser(context: Context, text: String, chooserTitle: String): Boolean {

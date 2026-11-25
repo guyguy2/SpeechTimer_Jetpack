@@ -15,14 +15,15 @@ enum class SpeechType(
     val id: String,
     val label: String,
     @StringRes val labelRes: Int,
+    @StringRes val cardTitleRes: Int,
     val presetMinMinutes: Int?,
     val presetMaxMinutes: Int?
 ) {
-    TABLE_TOPICS("table_topics", "TABLE TOPICS", R.string.speech_type_table_topics, 1, 2),
-    EVALUATION("evaluation", "EVALUATION", R.string.speech_type_evaluation, 2, 3),
-    ICE_BREAKER("ice_breaker", "ICE BREAKER", R.string.speech_type_ice_breaker, 4, 6),
-    SPEECH("speech", "SPEECH", R.string.speech_type_speech, 5, 7),
-    CUSTOM("custom", "Custom Speech", R.string.speech_type_custom, null, null);
+    TABLE_TOPICS("table_topics", "TABLE TOPICS", R.string.speech_type_table_topics, R.string.preset_title_table_topics, 1, 2),
+    EVALUATION("evaluation", "EVALUATION", R.string.speech_type_evaluation, R.string.preset_title_evaluation, 2, 3),
+    ICE_BREAKER("ice_breaker", "ICE BREAKER", R.string.speech_type_ice_breaker, R.string.preset_title_ice_breaker, 4, 6),
+    SPEECH("speech", "SPEECH", R.string.speech_type_speech, R.string.preset_title_speech, 5, 7),
+    CUSTOM("custom", "Custom Speech", R.string.speech_type_custom, R.string.speech_type_custom, null, null);
 
     /**
      * The title shown on the timer screen: "TABLE TOPICS (1 TO 2 MIN)" for presets and

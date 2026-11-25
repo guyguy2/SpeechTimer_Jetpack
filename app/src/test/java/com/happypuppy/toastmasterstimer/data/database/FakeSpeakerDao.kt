@@ -37,6 +37,11 @@ class FakeSpeakerDao(initial: List<Speaker> = emptyList()) : SpeakerDao {
         return if (error != null) flow { throw error } else speakers
     }
 
+    override suspend fun getAllSpeakersOnce(): List<Speaker> {
+        queryError?.let { throw it }
+        return speakers.value
+    }
+
     override suspend fun insertSpeaker(speaker: Speaker) {
         insertError?.let {
             insertError = null
@@ -44,6 +49,21 @@ class FakeSpeakerDao(initial: List<Speaker> = emptyList()) : SpeakerDao {
         }
         val stored = if (speaker.id == 0) speaker.copy(id = nextId++) else speaker
         speakers.update { list -> list.filterNot { it.id == stored.id } + stored }
+    }
+
+    override suspend fun insertSpeakers(speakers: List<Speaker>) {
+        insertError?.let {
+            insertError = null
+            throw it
+        }
+        this.speakers.update { list ->
+            var updated = list
+            for (speaker in speakers) {
+                val stored = if (speaker.id == 0) speaker.copy(id = nextId++) else speaker
+                updated = updated.filterNot { it.id == stored.id } + stored
+            }
+            updated
+        }
     }
 
     override suspend fun updateSpeaker(speaker: Speaker) {

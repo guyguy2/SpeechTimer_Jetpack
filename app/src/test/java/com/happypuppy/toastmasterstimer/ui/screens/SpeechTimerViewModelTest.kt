@@ -326,4 +326,102 @@ class SpeechTimerViewModelTest {
         assertEquals(SpeakerError.UpdateFailed, vm.uiState.value.error)
         assertEquals("Ann", vm.uiState.value.speakers.single().name)
     }
+
+    @Test
+    fun consecutiveDeletes_undoRestoresInLifoOrderAndReemitsPreviousSnackbar() = runTest {
+        val ann = speaker(1, "Ann")
+        val bob = speaker(2, "Bob")
+        val dao = FakeSpeakerDao(listOf(ann, bob))
+        val vm = viewModel(dao)
+        val events = mutableListOf<SpeakerEvent>()
+        val collectJob = launch(UnconfinedTestDispatcher(testScheduler)) {
+            vm.events.collect { events.add(it) }
+        }
+
+        vm.deleteSpeaker(ann)
+        vm.deleteSpeaker(bob)
+
+        assertTrue(vm.uiState.value.speakers.isEmpty())
+        assertTrue(vm.uiState.value.canUndo)
+        assertEquals(listOf(SpeakerEvent.Deleted(ann), SpeakerEvent.Deleted(bob)), events)
+
+        vm.undoDelete()
+        assertEquals(listOf("Bob"), vm.uiState.value.speakers.map { it.name })
+        assertEquals(1, vm.uiState.value.restoreVersions[bob.id])
+        assertTrue(vm.uiState.value.canUndo)
+        assertEquals(
+            listOf(SpeakerEvent.Deleted(ann), SpeakerEvent.Deleted(bob), SpeakerEvent.Deleted(ann)),
+            events
+        )
+
+        vm.undoDelete()
+        assertEquals(setOf("Ann", "Bob"), vm.uiState.value.speakers.map { it.name }.toSet())
+        assertEquals(1, vm.uiState.value.restoreVersions[ann.id])
+        assertFalse(vm.uiState.value.canUndo)
+
+        collectJob.cancel()
+    }
+
+    @Test
+    fun deleteAllSpeakers_undoRestoresAllRowsAndIncrementsRestoreVersions() = runTest {
+        val ann = speaker(1, "Ann")
+        val bob = speaker(2, "Bob")
+        val dao = FakeSpeakerDao(listOf(ann, bob))
+        val vm = viewModel(dao)
+
+        vm.deleteAllSpeakers()
+        assertTrue(vm.uiState.value.speakers.isEmpty())
+        assertTrue(vm.uiState.value.canUndo)
+
+        vm.undoDelete()
+        assertEquals(setOf("Ann", "Bob"), vm.uiState.value.speakers.map { it.name }.toSet())
+        assertEquals(1, vm.uiState.value.restoreVersions[ann.id])
+        assertEquals(1, vm.uiState.value.restoreVersions[bob.id])
+        assertFalse(vm.uiState.value.canUndo)
+    }
+
+    @Test
+    fun deleteSingleThenClearAll_undoRestoresBulkThenSingleInLifoOrder() = runTest {
+        val ann = speaker(1, "Ann")
+        val bob = speaker(2, "Bob")
+        val cara = speaker(3, "Cara")
+        val dao = FakeSpeakerDao(listOf(ann, bob, cara))
+        val vm = viewModel(dao)
+        val events = mutableListOf<SpeakerEvent>()
+        val collectJob = launch(UnconfinedTestDispatcher(testScheduler)) {
+            vm.events.collect { events.add(it) }
+        }
+
+        vm.deleteSpeaker(ann)
+        vm.deleteAllSpeakers()
+        assertTrue(vm.uiState.value.speakers.isEmpty())
+        assertTrue(vm.uiState.value.canUndo)
+
+        vm.undoDelete()
+        assertEquals(setOf("Bob", "Cara"), vm.uiState.value.speakers.map { it.name }.toSet())
+        assertTrue(vm.uiState.value.canUndo)
+        assertEquals(SpeakerEvent.Deleted(ann), events.last())
+
+        vm.undoDelete()
+        assertEquals(setOf("Ann", "Bob", "Cara"), vm.uiState.value.speakers.map { it.name }.toSet())
+        assertFalse(vm.uiState.value.canUndo)
+
+        collectJob.cancel()
+    }
+
+    @Test
+    fun dismissUndoSnackbar_clearsStackAndPreventsFurtherUndo() = runTest {
+        val ann = speaker(1, "Ann")
+        val dao = FakeSpeakerDao(listOf(ann))
+        val vm = viewModel(dao)
+
+        vm.deleteSpeaker(ann)
+        assertTrue(vm.uiState.value.canUndo)
+
+        vm.dismissUndoSnackbar()
+        assertFalse(vm.uiState.value.canUndo)
+
+        vm.undoDelete()
+        assertTrue(vm.uiState.value.speakers.isEmpty())
+    }
 }
