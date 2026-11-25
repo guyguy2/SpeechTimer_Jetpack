@@ -67,4 +67,107 @@
         <item quantity="one">%d second</item>
         <item quantity="other">%d seconds</item>
     </plurals>
+
+    <!-- Common labels -->
+    <string name="common_save">Save</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_dismiss">Dismiss</string>
+    <string name="common_back">Back</string>
+    <string name="common_ok">OK</string>
+
+    <!-- Navigation -->
+    <string name="nav_settings">Settings</string>
+    <string name="nav_speeches">Speeches</string>
+    <string name="nav_custom">Custom</string>
+    <string name="nav_saved_data">Saved Data</string>
+
+    <!-- Speech types and timer titles -->
+    <string name="speech_type_table_topics">TABLE TOPICS</string>
+    <string name="speech_type_evaluation">EVALUATION</string>
+    <string name="speech_type_ice_breaker">ICE BREAKER</string>
+    <string name="speech_type_speech">SPEECH</string>
+    <string name="speech_type_custom">Custom Speech</string>
+    <string name="timer_title_preset">%1$s (%2$d TO %3$d MIN)</string>
+    <string name="timer_title_custom">%1$s (%2$d - %3$d min)</string>
+
+    <!-- Custom speech screen -->
+    <string name="custom_speech_title">Set Speech Duration</string>
+    <string name="custom_speech_from">From</string>
+    <string name="custom_speech_to_connector">to</string>
+    <string name="custom_speech_to">To</string>
+    <string name="custom_speech_start_timer">Start Timer</string>
+    <plurals name="custom_speech_summary">
+        <item quantity="one">Speech will last between %1$d and %2$d minute</item>
+        <item quantity="other">Speech will last between %1$d and %2$d minutes</item>
+    </plurals>
+    <plurals name="custom_speech_minutes_unit">
+        <item quantity="one">minute</item>
+        <item quantity="other">minutes</item>
+    </plurals>
+
+    <!-- Name input dialog -->
+    <string name="dialog_enter_name">Enter Name</string>
+    <string name="dialog_speaker_name_label">Speaker\'s Name</string>
+
+    <!-- Timer screen -->
+    <string name="timer_foreground_hint">Keep this screen open for alerts</string>
+    <string name="timer_hide_controls">Hide controls</string>
+    <string name="timer_show_controls">Show controls</string>
+    <string name="timer_reset_snackbar">Timer reset</string>
+    <string name="timer_leave_title">Leave timer?</string>
+    <string name="timer_leave_message">Your time will be lost unless you save it first.</string>
+    <string name="timer_leave_stay">Stay</string>
+    <string name="timer_leave_confirm">Leave</string>
+    <string name="timer_saved_snackbar">Saved %1$s\'s speech data</string>
+    <string name="timer_saved_view_data">VIEW DATA</string>
+    <string name="timer_save_dialog_title">Save Time</string>
+    <string name="timer_restored">Timer restored</string>
+
+    <!-- Saved Data screen -->
+    <string name="saved_title">Saved Speech Data</string>
+    <string name="saved_sort_options_cd">Sort Options</string>
+    <string name="saved_sharing_all">Sharing all speech data</string>
+    <string name="saved_sharing_single">Sharing %1$s\'s speech data</string>
+    <string name="saved_share_no_app">No app available to share speech data</string>
+    <string name="saved_share_all_cd">Share All Data</string>
+    <string name="saved_clear_all_cd">Clear All Data</string>
+    <string name="saved_clear_all_title">Clear All Data</string>
+    <string name="saved_clear_all_message">Are you sure you want to delete all saved speech data? This action cannot be undone.</string>
+    <string name="saved_clear_all_confirm">Delete All</string>
+    <string name="saved_sort_dialog_title">Sort By</string>
+    <string name="saved_sort_date_newest">Date (Newest first)</string>
+    <string name="saved_sort_date_oldest">Date (Oldest first)</string>
+    <string name="saved_sort_name_asc">Name (A-Z)</string>
+    <string name="saved_sort_name_desc">Name (Z-A)</string>
+    <string name="saved_sort_type_asc">Speech Type (A-Z)</string>
+    <string name="saved_sort_type_desc">Speech Type (Z-A)</string>
+    <string name="saved_empty_title">No Saved Speech Data</string>
+    <string name="saved_empty_subtitle">Start timing a speech to save data</string>
+    <string name="saved_empty_add_cta">Add New Speech</string>
+    <string name="saved_error_prefix">Error: %1$s</string>
+    <string name="saved_error_load_failed">Failed to load speeches</string>
+    <string name="saved_error_save_failed">Failed to save speech</string>
+    <string name="saved_error_update_failed">Failed to update speaker name</string>
+    <string name="saved_error_delete_failed">Failed to delete speech</string>
+    <string name="saved_error_delete_all_failed">Failed to delete saved speeches</string>
+    <string name="saved_error_restore_failed">Failed to restore speech</string>
+
+    <!-- Settings screen -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_foreground_only_note">Alerts only play while this app is open. Keep the timer screen open and the screen on while timing.</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_system">System Default</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_vibration">Vibration</string>
+    <string name="settings_vibration_description">Vibrate when display changes color</string>
+    <string name="settings_sound">Sound</string>
+    <string name="settings_sound_description">Play sound when display changes color</string>
+    <string name="settings_rate_app">Rate App</string>
+    <string name="settings_about">About</string>
+    <string name="settings_about_title">About Simple Speech Timer</string>
+    <string name="settings_about_description">A simple yet effective timer app for speeches and presentations.</string>
+    <string name="settings_about_version">Version:</string>
+    <string name="settings_about_copyright">&#169;2013&#8211;2026 Simple Speech Timer</string>
+    <string name="settings_about_rights">All rights reserved</string>
 </resources>

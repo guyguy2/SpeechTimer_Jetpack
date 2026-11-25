@@ -3,12 +3,13 @@ package com.happypuppy.toastmasterstimer.ui.screens
 import android.content.res.Resources
 import com.happypuppy.toastmasterstimer.R
 import com.happypuppy.toastmasterstimer.data.database.repository.Speaker
+import com.happypuppy.toastmasterstimer.model.SpeechType
 import com.happypuppy.toastmasterstimer.util.TimerPhase
 import com.happypuppy.toastmasterstimer.util.formatTime
 import java.util.Date
 import java.util.Locale
 
-/** Localized templates and phase labels used when formatting saved speeches for sharing. */
+/** Localized templates and labels used when formatting saved speeches for sharing. */
 data class SpeakerShareLabels(
     val header: String,
     val footerSingle: String,
@@ -19,7 +20,8 @@ data class SpeakerShareLabels(
     val durationFormat: String,
     val phaseFormat: String,
     val recordedOnFormat: String,
-    val phaseLabels: Map<TimerPhase, String> = emptyMap()
+    val phaseLabels: Map<TimerPhase, String> = emptyMap(),
+    val speechTypeLabels: Map<String, String> = emptyMap()
 ) {
     companion object {
         fun fromResources(resources: Resources): SpeakerShareLabels = SpeakerShareLabels(
@@ -34,7 +36,8 @@ data class SpeakerShareLabels(
             recordedOnFormat = resources.getString(R.string.share_field_recorded_on),
             phaseLabels = TimerPhase.entries.associateWith { phase ->
                 resources.getString(phaseCue(phase).labelRes)
-            }
+            },
+            speechTypeLabels = SpeechType.entries.associate { it.id to resources.getString(it.labelRes) }
         )
     }
 }
@@ -70,11 +73,12 @@ fun formatSpeakerSummary(
     val targetRange = formatTargetRangeMinutes(speaker.minSeconds, speaker.maxSeconds)
     val resolvedPhaseLabel = phaseLabel?.takeIf { it.isNotBlank() }
         ?: parseTimerPhase(speaker.phaseReached)?.let { labels.phaseLabels[it] }
+    val displaySpeechType = labels.speechTypeLabels[speaker.speechTypeId] ?: speaker.speechType
     val locale = Locale.getDefault()
 
     return buildList {
         add(String.format(locale, labels.nameFormat, speaker.name))
-        add(String.format(locale, labels.speechTypeFormat, speaker.speechType))
+        add(String.format(locale, labels.speechTypeFormat, displaySpeechType))
         if (targetRange != null) {
             add(String.format(locale, labels.targetRangeFormat, targetRange))
         }

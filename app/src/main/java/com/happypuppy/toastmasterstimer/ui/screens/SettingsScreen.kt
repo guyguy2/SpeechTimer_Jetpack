@@ -47,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
@@ -60,9 +61,6 @@ import com.happypuppy.toastmasterstimer.util.AppVersionInfo
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
-const val FOREGROUND_ONLY_NOTE =
-    "Alerts only play while this app is open. Keep the timer screen open and the screen on while timing."
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(navController: NavHostController) {
@@ -72,10 +70,13 @@ fun SettingsScreen(navController: NavHostController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.common_back)
+                        )
                     }
                 }
             )
@@ -98,7 +99,7 @@ fun SettingsScreen(navController: NavHostController) {
             SoundSetting(dataStoreManager)
 
             Text(
-                text = FOREGROUND_ONLY_NOTE,
+                text = stringResource(R.string.settings_foreground_only_note),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -125,14 +126,14 @@ fun ThemeSelector(dataStoreManager: DataStoreManager) {
         modifier = Modifier.fillMaxWidth()
     ) {
         Text(
-            text = "Theme",
+            text = stringResource(R.string.settings_theme),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
         ThemeOption(
-            title = "System Default",
+            title = stringResource(R.string.settings_theme_system),
             icon = painterResource(R.drawable.smartphone_24px),
             selected = currentTheme == AppTheme.SYSTEM_DEFAULT,
             onClick = {
@@ -143,7 +144,7 @@ fun ThemeSelector(dataStoreManager: DataStoreManager) {
         )
 
         ThemeOption(
-            title = "Light",
+            title = stringResource(R.string.settings_theme_light),
             icon = painterResource(R.drawable.light_mode_24px),
             selected = currentTheme == AppTheme.LIGHT,
             onClick = {
@@ -154,7 +155,7 @@ fun ThemeSelector(dataStoreManager: DataStoreManager) {
         )
 
         ThemeOption(
-            title = "Dark",
+            title = stringResource(R.string.settings_theme_dark),
             icon = painterResource(R.drawable.dark_mode_24px),
             selected = currentTheme == AppTheme.DARK,
             onClick = {
@@ -203,8 +204,8 @@ fun VibrationSetting(dataStoreManager: DataStoreManager) {
     val isEnabled by dataStoreManager.vibrateEnabledFlow.collectAsState(initial = true)
 
     SettingSwitch(
-        title = "Vibration",
-        description = "Vibrate when display changes color",
+        title = stringResource(R.string.settings_vibration),
+        description = stringResource(R.string.settings_vibration_description),
         checked = isEnabled,
         onCheckedChange = { enabled ->
             scope.launch {
@@ -229,8 +230,8 @@ fun SoundSetting(dataStoreManager: DataStoreManager) {
     val isEnabled by dataStoreManager.soundEnabledFlow.collectAsState(initial = false)
 
     SettingSwitch(
-        title = "Sound",
-        description = "Play sound when display changes color",
+        title = stringResource(R.string.settings_sound),
+        description = stringResource(R.string.settings_sound_description),
         checked = isEnabled,
         onCheckedChange = { enabled ->
             scope.launch {
@@ -324,7 +325,7 @@ fun RateAppSetting() {
             tint = MaterialTheme.colorScheme.primary
         )
         Text(
-            text = "Rate App",
+            text = stringResource(R.string.settings_rate_app),
             style = MaterialTheme.typography.titleMedium
         )
     }
@@ -348,7 +349,7 @@ fun AboutSetting(onClick: () -> Unit) {
             tint = MaterialTheme.colorScheme.primary
         )
         Text(
-            text = "About",
+            text = stringResource(R.string.settings_about),
             style = MaterialTheme.typography.titleMedium
         )
     }
@@ -361,16 +362,16 @@ fun AboutDialog(onDismiss: () -> Unit) {
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("About Simple Speech Timer") },
+        title = { Text(stringResource(R.string.settings_about_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("A simple yet effective timer app for speeches and presentations.")
+                Text(stringResource(R.string.settings_about_description))
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Row {
                     Text(
-                        text = "Version:",
+                        text = stringResource(R.string.settings_about_version),
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.width(4.dp))
@@ -379,13 +380,13 @@ fun AboutDialog(onDismiss: () -> Unit) {
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Text("©2013 - 2026 Simple Speech Timer")
-                Text("All rights reserved")
+                Text(stringResource(R.string.settings_about_copyright))
+                Text(stringResource(R.string.settings_about_rights))
             }
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("OK")
+                Text(stringResource(R.string.common_ok))
             }
         }
     )

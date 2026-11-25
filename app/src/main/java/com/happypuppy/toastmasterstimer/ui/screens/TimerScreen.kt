@@ -40,8 +40,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -55,13 +57,12 @@ import com.happypuppy.toastmasterstimer.data.preferences.DataStoreManager
 import com.happypuppy.toastmasterstimer.navigation.Screen
 import com.happypuppy.toastmasterstimer.navigation.TimerRoute
 import com.happypuppy.toastmasterstimer.ui.components.InputDialog
+import com.happypuppy.toastmasterstimer.ui.components.displayTitle
 import com.happypuppy.toastmasterstimer.util.formatTime
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
-
-const val FOREGROUND_HINT = "Keep this screen open for alerts"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -130,7 +131,8 @@ fun TimerScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    val title = route.title
+    val resources = LocalResources.current
+    val title = route.displayTitle()
     val speechType = route.speechType.label
 
     val formattedTime = remember(ticks) { formatTime(ticks) }
@@ -165,7 +167,10 @@ fun TimerScreen(
                             if (ticks > 0) showLeaveDialog = true else navController.navigateUp()
                         }
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.common_back)
+                        )
                     }
                 },
                 actions = {
@@ -175,7 +180,9 @@ fun TimerScreen(
                                 if (!isUIVisible) R.drawable.visibility_off_24px
                                 else R.drawable.visibility_24px
                             ),
-                            contentDescription = if (isUIVisible) "Hide controls" else "Show controls"
+                            contentDescription = stringResource(
+                                if (isUIVisible) R.string.timer_hide_controls else R.string.timer_show_controls
+                            )
                         )
                     }
                 }
@@ -199,8 +206,8 @@ fun TimerScreen(
                 undoJob?.cancel()
                 undoJob = scope.launch {
                     val result = snackbarHostState.showSnackbar(
-                        message = "Timer reset",
-                        actionLabel = "Undo",
+                        message = resources.getString(R.string.timer_reset_snackbar),
+                        actionLabel = resources.getString(R.string.saved_undo),
                         duration = SnackbarDuration.Long
                     )
                     if (result == SnackbarResult.ActionPerformed) {
@@ -227,20 +234,20 @@ fun TimerScreen(
                 ) {
                     Column(modifier = Modifier.padding(24.dp)) {
                         Text(
-                            text = "Leave timer?",
+                            text = stringResource(R.string.timer_leave_title),
                             style = MaterialTheme.typography.headlineSmall,
                             color = AlertDialogDefaults.titleContentColor
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Your time will be lost unless you save it first.",
+                            text = stringResource(R.string.timer_leave_message),
                             style = MaterialTheme.typography.bodyMedium,
                             color = AlertDialogDefaults.textContentColor
                         )
                         Spacer(modifier = Modifier.height(24.dp))
                         Row(modifier = Modifier.align(Alignment.End)) {
                             TextButton(onClick = { showLeaveDialog = false }) {
-                                Text("Stay")
+                                Text(stringResource(R.string.timer_leave_stay))
                             }
                             TextButton(
                                 onClick = {
@@ -248,7 +255,7 @@ fun TimerScreen(
                                     navController.navigateUp()
                                 }
                             ) {
-                                Text("Leave")
+                                Text(stringResource(R.string.timer_leave_confirm))
                             }
                         }
                     }
@@ -273,8 +280,8 @@ fun TimerScreen(
 
                     scope.launch {
                         val result = snackbarHostState.showSnackbar(
-                            message = "Saved ${name}'s speech data",
-                            actionLabel = "VIEW DATA",
+                            message = resources.getString(R.string.timer_saved_snackbar, name),
+                            actionLabel = resources.getString(R.string.timer_saved_view_data),
                             duration = SnackbarDuration.Short
                         )
 
@@ -288,7 +295,7 @@ fun TimerScreen(
                     }
                     showDialog = false
                 },
-                title = "Save Time"
+                title = stringResource(R.string.timer_save_dialog_title)
             )
         }
     }

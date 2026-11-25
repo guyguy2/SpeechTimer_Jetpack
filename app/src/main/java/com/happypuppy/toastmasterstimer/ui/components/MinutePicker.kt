@@ -13,12 +13,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.happypuppy.toastmasterstimer.R
 
 @Composable
 fun MinutePicker(
@@ -72,7 +74,7 @@ fun MinutePicker(
                 }
 
                 Text(
-                    text = "$value",
+                    text = value.toString(),
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(vertical = 8.dp)
@@ -99,7 +101,7 @@ fun MinutePicker(
         }
 
         Text(
-            text = "minutes",
+            text = pluralStringResource(R.plurals.custom_speech_minutes_unit, value),
             fontSize = 14.sp,
             modifier = Modifier.padding(top = 8.dp)
         )

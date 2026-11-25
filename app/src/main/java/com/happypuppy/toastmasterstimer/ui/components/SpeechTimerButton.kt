@@ -23,7 +23,7 @@ fun SpeechTimerButton(
 ) {
     val minMinutes = requireNotNull(speechType.presetMinMinutes) { "${speechType.id} has no preset range" }
     val maxMinutes = requireNotNull(speechType.presetMaxMinutes) { "${speechType.id} has no preset range" }
-    val text = speechType.timerTitle(minMinutes, maxMinutes)
+    val text = speechType.displayTitle(minMinutes, maxMinutes)
 
     Button(
         onClick = {

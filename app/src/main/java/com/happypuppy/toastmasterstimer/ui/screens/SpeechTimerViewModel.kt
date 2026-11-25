@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 data class MainScreenUiState(
     val speakers: List<Speaker> = emptyList(),
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: SpeakerError? = null
 )
 
 sealed interface SpeakerEvent {
@@ -38,8 +38,8 @@ class SpeechTimerViewModel(private val repository: SpeakerRepository) : ViewMode
     init {
         viewModelScope.launch {
             repository.getAllSpeakers()
-                .catch { e ->
-                    _uiState.update { it.copy(error = e.message ?: "Failed to load speeches", isLoading = false) }
+                .catch { _ ->
+                    _uiState.update { it.copy(error = SpeakerError.LoadFailed, isLoading = false) }
                 }
                 .collect { speakers ->
                     // A successful load supersedes any earlier error
@@ -60,7 +60,7 @@ class SpeechTimerViewModel(private val repository: SpeakerRepository) : ViewMode
     ) {
         val trimmedName = name.trim()
         if (trimmedName.isEmpty()) return
-        runMutation {
+        runMutation(SpeakerError.SaveFailed) {
             repository.insertSpeaker(
                 Speaker(
                     name = trimmedName,
@@ -79,25 +79,25 @@ class SpeechTimerViewModel(private val repository: SpeakerRepository) : ViewMode
     fun updateSpeakerName(speaker: Speaker, newName: String) {
         val trimmedName = newName.trim()
         if (trimmedName.isEmpty() || trimmedName == speaker.name) return
-        runMutation {
+        runMutation(SpeakerError.UpdateFailed) {
             repository.updateSpeaker(speaker.copy(name = trimmedName))
         }
     }
 
     fun restoreSpeaker(speaker: Speaker) {
-        runMutation {
+        runMutation(SpeakerError.RestoreFailed) {
             repository.insertSpeaker(speaker)
         }
     }
 
     fun deleteSpeaker(speaker: Speaker) {
-        runMutation(onSuccess = { _events.tryEmit(SpeakerEvent.Deleted(speaker)) }) {
+        runMutation(SpeakerError.DeleteFailed, onSuccess = { _events.tryEmit(SpeakerEvent.Deleted(speaker)) }) {
             repository.deleteSpeaker(speaker)
         }
     }
 
     fun deleteAllSpeakers() {
-        runMutation(onSuccess = { _events.tryEmit(SpeakerEvent.AllDeleted) }) {
+        runMutation(SpeakerError.DeleteAllFailed, onSuccess = { _events.tryEmit(SpeakerEvent.AllDeleted) }) {
             repository.deleteAllSpeakers()
         }
     }
@@ -108,6 +108,7 @@ class SpeechTimerViewModel(private val repository: SpeakerRepository) : ViewMode
 
     /** Runs a database write, surfacing failures in [uiState] instead of crashing the app. */
     private fun runMutation(
+        error: SpeakerError,
         onSuccess: () -> Unit = {},
         block: suspend () -> Unit
     ) {
@@ -117,8 +118,8 @@ class SpeechTimerViewModel(private val repository: SpeakerRepository) : ViewMode
                 onSuccess()
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Exception) {
-                _uiState.update { it.copy(error = e.message ?: "Database operation failed") }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(error = error) }
             }
         }
     }

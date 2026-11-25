@@ -16,14 +16,16 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import com.happypuppy.toastmasterstimer.R
 
 @Composable
 fun InputDialog(
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
-    title: String = "Enter Name",
+    title: String = stringResource(R.string.dialog_enter_name),
     initialText: String = ""
 ) {
     var text by rememberSaveable(initialText) { mutableStateOf(initialText) }
@@ -44,7 +46,7 @@ fun InputDialog(
                 onValueChange = { text = it },
                 singleLine = true,
                 modifier = Modifier.focusRequester(focusRequester),
-                label = { Text("Speaker's Name") },
+                label = { Text(stringResource(R.string.dialog_speaker_name_label)) },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Text,
                     capitalization = KeyboardCapitalization.Words
@@ -59,12 +61,12 @@ fun InputDialog(
                 },
                 enabled = trimmed.isNotEmpty()
             ) {
-                Text("Save")
+                Text(stringResource(R.string.common_save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.common_cancel))
             }
         }
     )

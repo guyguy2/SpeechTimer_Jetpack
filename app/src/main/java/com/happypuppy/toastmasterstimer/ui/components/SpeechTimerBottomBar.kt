@@ -1,5 +1,6 @@
 package com.happypuppy.toastmasterstimer.ui.components
 
+import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
@@ -8,19 +9,20 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavHostController
 import com.happypuppy.toastmasterstimer.R
 import com.happypuppy.toastmasterstimer.navigation.Screen
 
 private data class BottomNavTab(
     val route: String,
-    val label: String
+    @StringRes val labelRes: Int
 )
 
 private val bottomNavTabs = listOf(
-    BottomNavTab(Screen.Main.route, "Speeches"),
-    BottomNavTab(Screen.CustomSpeechScreen.route, "Custom"),
-    BottomNavTab(Screen.SavedDataScreen.route, "Saved Data")
+    BottomNavTab(Screen.Main.route, R.string.nav_speeches),
+    BottomNavTab(Screen.CustomSpeechScreen.route, R.string.nav_custom),
+    BottomNavTab(Screen.SavedDataScreen.route, R.string.nav_saved_data)
 )
 
 @Composable
@@ -30,23 +32,24 @@ fun SpeechTimerBottomBar(
 ) {
     NavigationBar {
         bottomNavTabs.forEachIndexed { index, tab ->
+            val label = stringResource(tab.labelRes)
             NavigationBarItem(
                 icon = {
                     when (index) {
                         0 -> Icon(
                             painter = painterResource(R.drawable.podium_24px),
-                            contentDescription = tab.label
+                            contentDescription = label
                         )
 
                         1 -> Icon(
                             painter = painterResource(R.drawable.timer_24px),
-                            contentDescription = tab.label
+                            contentDescription = label
                         )
 
-                        else -> Icon(Icons.Filled.Person, contentDescription = tab.label)
+                        else -> Icon(Icons.Filled.Person, contentDescription = label)
                     }
                 },
-                label = { Text(tab.label) },
+                label = { Text(label) },
                 selected = currentRoute == tab.route,
                 onClick = {
                     if (currentRoute != tab.route) {
