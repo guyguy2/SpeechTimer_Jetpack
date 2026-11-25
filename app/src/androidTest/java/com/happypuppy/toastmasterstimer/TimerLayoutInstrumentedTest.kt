@@ -49,6 +49,24 @@ class TimerLayoutInstrumentedTest {
         return results.single()
     }
 
+    private fun assertSingleLineWithoutClipping(label: String, layout: TextLayoutResult) {
+        assertEquals("$label digits should stay on 1 line", 1, layout.lineCount)
+        assertTrue(
+            "$label digits overflowed vertically: size=${layout.size}",
+            !layout.didOverflowHeight
+        )
+        assertTrue(
+            "$label digits were ellipsized",
+            !layout.isLineEllipsized(0)
+        )
+        assertTrue(
+            "$label digits clipped horizontally: lineRight=${layout.getLineRight(0)}, " +
+                "size=${layout.size}, maxWidth=${layout.layoutInput.constraints.maxWidth}",
+            layout.getLineRight(0) <= layout.size.width + 1f &&
+                layout.getLineRight(0) <= layout.layoutInput.constraints.maxWidth + 1f
+        )
+    }
+
     @Test
     fun phonePortrait_stacksControlsBelowDigitsOnSingleLine() {
         rule.setContent {
@@ -75,13 +93,7 @@ class TimerLayoutInstrumentedTest {
         rule.waitForIdle()
 
         val digitsLayout = digitsLayout("01:15")
-        assertEquals(1, digitsLayout.lineCount)
-        assertTrue(
-            "Portrait digits overflowed: hasVisualOverflow=${digitsLayout.hasVisualOverflow}, " +
-                "didOverflowWidth=${digitsLayout.didOverflowWidth}, didOverflowHeight=${digitsLayout.didOverflowHeight}, " +
-                "lineRight=${digitsLayout.getLineRight(0)}, size=${digitsLayout.size}",
-            !digitsLayout.hasVisualOverflow && digitsLayout.getLineRight(0) <= digitsLayout.size.width + 1f
-        )
+        assertSingleLineWithoutClipping("Portrait", digitsLayout)
 
         val digitsBounds = rule.onNodeWithText("01:15").fetchSemanticsNode().boundsInRoot
         val startBounds = rule.onNodeWithContentDescription("Start timer").fetchSemanticsNode().boundsInRoot
@@ -117,13 +129,7 @@ class TimerLayoutInstrumentedTest {
         rule.waitForIdle()
 
         val digitsLayout = digitsLayout("01:35")
-        assertEquals(1, digitsLayout.lineCount)
-        assertTrue(
-            "Landscape digits overflowed: hasVisualOverflow=${digitsLayout.hasVisualOverflow}, " +
-                "didOverflowWidth=${digitsLayout.didOverflowWidth}, didOverflowHeight=${digitsLayout.didOverflowHeight}, " +
-                "lineRight=${digitsLayout.getLineRight(0)}, size=${digitsLayout.size}",
-            !digitsLayout.hasVisualOverflow && digitsLayout.getLineRight(0) <= digitsLayout.size.width + 1f
-        )
+        assertSingleLineWithoutClipping("Landscape", digitsLayout)
 
         val digitsBounds = rule.onNodeWithText("01:35").fetchSemanticsNode().boundsInRoot
         val startBounds = rule.onNodeWithContentDescription("Start timer").fetchSemanticsNode().boundsInRoot
@@ -180,13 +186,7 @@ class TimerLayoutInstrumentedTest {
         val tabletHeightDp = tabletLayout.size.height / tabletLayout.layoutInput.density.density
         val tabletFontSp = tabletLayout.layoutInput.style.fontSize.value
 
-        assertEquals(1, tabletLayout.lineCount)
-        assertTrue(
-            "Tablet digits overflowed: hasVisualOverflow=${tabletLayout.hasVisualOverflow}, " +
-                "didOverflowWidth=${tabletLayout.didOverflowWidth}, didOverflowHeight=${tabletLayout.didOverflowHeight}, " +
-                "lineRight=${tabletLayout.getLineRight(0)}, size=${tabletLayout.size}",
-            !tabletLayout.hasVisualOverflow && tabletLayout.getLineRight(0) <= tabletLayout.size.width + 1f
-        )
+        assertSingleLineWithoutClipping("Tablet", tabletLayout)
         assertTrue(
             "Expected tablet fontSize ($tabletFontSp sp) > phone fontSize ($phoneFontSp sp)",
             tabletFontSp > phoneFontSp
