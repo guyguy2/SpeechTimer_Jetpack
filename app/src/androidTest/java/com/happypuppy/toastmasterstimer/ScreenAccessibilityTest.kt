@@ -1,26 +1,39 @@
 package com.happypuppy.toastmasterstimer
 
+import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.DeviceConfigurationOverride
+import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.WindowSize
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.accessibility.enableAccessibilityChecks
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.tryPerformAccessibilityChecks
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
+import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.happypuppy.toastmasterstimer.data.database.repository.Speaker
 import com.happypuppy.toastmasterstimer.data.database.repository.SpeakerRepository
+import com.happypuppy.toastmasterstimer.data.preferences.AppTheme
 import com.happypuppy.toastmasterstimer.data.preferences.DataStoreManager
+import com.happypuppy.toastmasterstimer.ui.screens.SAVED_GRID_TAG
+import com.happypuppy.toastmasterstimer.ui.screens.SavedDataScreen
 import com.happypuppy.toastmasterstimer.ui.screens.SortOption
+import com.happypuppy.toastmasterstimer.ui.theme.SimpleSpeechTimerTheme
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.koin.core.context.GlobalContext
+import java.util.Date
 
 /**
  * Accessibility-check (ATF) tests for the screens other than the timer, one per screen or state,
@@ -58,6 +71,33 @@ class ScreenAccessibilityTest {
     @Test
     fun main_passesAccessibilityChecks() {
         waitForText("Table Topics")
+        checkAllWindows()
+    }
+
+    @Test
+    fun mainPopulated_passesAccessibilityChecks() {
+        runBlocking {
+            repository.insertSpeaker(
+                Speaker(
+                    name = "Ann",
+                    speechType = "SPEECH",
+                    duration = "05:10",
+                    phaseReached = "GREEN",
+                    createdAt = Date(2_000L)
+                )
+            )
+            repository.insertSpeaker(
+                Speaker(
+                    name = "Bob",
+                    speechType = "TABLE TOPICS",
+                    duration = "01:40",
+                    phaseReached = "YELLOW",
+                    createdAt = Date(1_000L)
+                )
+            )
+        }
+        waitForText("Recent")
+        waitForText("Ann")
         checkAllWindows()
     }
 
@@ -118,5 +158,65 @@ class ScreenAccessibilityTest {
         rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
         waitForText("Leave timer?")
         checkAllWindows()
+    }
+}
+
+/**
+ * Adaptive wide-screen accessibility checks (ATF) using [DeviceConfigurationOverride.WindowSize]
+ * inside a [ComponentActivity] host.
+ */
+@OptIn(ExperimentalTestApi::class)
+@RunWith(AndroidJUnit4::class)
+class AdaptiveScreenAccessibilityTest {
+
+    @get:Rule
+    val rule = createAndroidComposeRule<ComponentActivity>()
+
+    private val repository: SpeakerRepository
+        get() = GlobalContext.get().get()
+
+    private val dataStoreManager: DataStoreManager
+        get() = GlobalContext.get().get()
+
+    @Before
+    fun prepare() {
+        runBlocking {
+            repository.deleteAllSpeakers()
+            dataStoreManager.setSavedSortOption(SortOption.DATE_NEWEST)
+            repository.insertSpeaker(
+                Speaker(
+                    name = "Ann",
+                    speechType = "SPEECH",
+                    duration = "05:10",
+                    phaseReached = "GREEN",
+                    createdAt = Date(2_000L)
+                )
+            )
+            repository.insertSpeaker(
+                Speaker(
+                    name = "Bob",
+                    speechType = "TABLE TOPICS",
+                    duration = "01:40",
+                    phaseReached = "YELLOW",
+                    createdAt = Date(1_000L)
+                )
+            )
+        }
+        rule.enableAccessibilityChecks()
+    }
+
+    @Test
+    fun savedDataWideGrid_passesAccessibilityChecks() {
+        rule.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.WindowSize(DpSize(840.dp, 900.dp))) {
+                SimpleSpeechTimerTheme(themePreference = AppTheme.LIGHT, dynamicColor = false) {
+                    SavedDataScreen(navController = rememberNavController())
+                }
+            }
+        }
+        rule.waitUntil(10_000) { rule.onAllNodesWithText("Ann").fetchSemanticsNodes().isNotEmpty() }
+        rule.waitForIdle()
+        rule.onNodeWithTag(SAVED_GRID_TAG).assertExists()
+        rule.onAllNodes(isRoot()).tryPerformAccessibilityChecks()
     }
 }

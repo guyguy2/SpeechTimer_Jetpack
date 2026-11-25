@@ -133,17 +133,25 @@ fun SwipeToDeleteSpeakerItem(
     onEditClick: () -> Unit,
     onShareClick: () -> Unit,
     onDelete: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    restoreVersion: Int = 0
 ) {
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
     val isDarkTheme = LocalIsDarkTheme.current
     val reducedMotion = remember(context) { isReducedMotionEnabled(context) }
-    var deleteDispatched by remember { mutableStateOf(false) }
+    var deleteDispatched by remember(speaker.id, restoreVersion) { mutableStateOf(false) }
 
     val dismissState = rememberSwipeToDismissBoxState(
         positionalThreshold = { it * SWIPE_DISMISS_POSITIONAL_THRESHOLD_FRACTION }
     )
+
+    LaunchedEffect(speaker.id, restoreVersion) {
+        deleteDispatched = false
+        if (dismissState.currentValue != SwipeToDismissBoxValue.Settled) {
+            dismissState.snapTo(SwipeToDismissBoxValue.Settled)
+        }
+    }
 
     val isThresholdCrossed = dismissState.targetValue != SwipeToDismissBoxValue.Settled
     var wasThresholdCrossed by remember { mutableStateOf(false) }

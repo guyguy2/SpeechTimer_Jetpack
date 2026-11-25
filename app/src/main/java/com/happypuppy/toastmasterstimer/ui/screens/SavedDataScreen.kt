@@ -53,6 +53,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -175,13 +176,34 @@ fun SavedDataScreen(
         }
     }
 
+    var retryRestoreAttempt by remember { mutableIntStateOf(0) }
+
     // Surface transient errors without hiding existing saved speeches
-    LaunchedEffect(error) {
+    LaunchedEffect(error, sortedSpeakers.isNotEmpty(), retryRestoreAttempt) {
         if (error != null && sortedSpeakers.isNotEmpty()) {
-            snackbarHostState.showSnackbar(
-                resources.getString(R.string.saved_error_prefix, error.message.asString(context))
+            val canRetryRestore = error == SpeakerError.RestoreFailed && uiState.canUndo
+            val result = snackbarHostState.showSnackbar(
+                message = resources.getString(R.string.saved_error_prefix, error.message.asString(context)),
+                actionLabel = if (canRetryRestore) resources.getString(R.string.saved_undo) else null,
+                duration = if (canRetryRestore) SnackbarDuration.Long else SnackbarDuration.Short
             )
-            viewModel.clearError()
+            if (canRetryRestore) {
+                when (result) {
+                    SnackbarResult.ActionPerformed -> {
+                        viewModel.clearError()
+                        retryRestoreAttempt++
+                        viewModel.undoDelete()
+                    }
+                    SnackbarResult.Dismissed -> {
+                        if (viewModel.uiState.value.error == SpeakerError.RestoreFailed) {
+                            viewModel.dismissUndoSnackbar()
+                        }
+                        viewModel.clearError()
+                    }
+                }
+            } else {
+                viewModel.clearError()
+            }
         }
     }
 
@@ -255,8 +277,20 @@ fun SavedDataScreen(
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.error
                     )
-                    OutlinedButton(onClick = { viewModel.clearError() }) {
-                        Text(stringResource(R.string.common_dismiss))
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (error == SpeakerError.RestoreFailed && uiState.canUndo) {
+                            Button(onClick = { viewModel.undoDelete() }) {
+                                Text(stringResource(R.string.saved_undo))
+                            }
+                        }
+                        OutlinedButton(onClick = {
+                            if (error == SpeakerError.RestoreFailed) {
+                                viewModel.dismissUndoSnackbar()
+                            }
+                            viewModel.clearError()
+                        }) {
+                            Text(stringResource(R.string.common_dismiss))
+                        }
                     }
                 }
             } else if (sortedSpeakers.isEmpty()) {
@@ -436,7 +470,8 @@ fun SpeechDataList(
                         isVibrationEnabled = isVibrationEnabled,
                         onEditClick = { onEditClick(speaker) },
                         onShareClick = { onShareClick(speaker) },
-                        onDelete = { onDeleteClick(speaker) }
+                        onDelete = { onDeleteClick(speaker) },
+                        restoreVersion = restoreVersions[speaker.id] ?: 0
                     )
                 } else {
                     SpeakerCard(
@@ -492,7 +527,7 @@ fun SpeakerCard(
                 }
             }
             .focusable(interactionSource = interactionSource)
-            .semantics {
+            .semantics(mergeDescendants = true) {
                 customActions = listOf(
                     CustomAccessibilityAction(editLabel) {
                         onEditClick()

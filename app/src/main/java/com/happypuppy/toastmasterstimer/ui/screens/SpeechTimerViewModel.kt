@@ -172,7 +172,9 @@ class SpeechTimerViewModel(private val repository: SpeakerRepository) : ViewMode
         if (_rawSpeakers.value?.none { it.id == speaker.id } == true) return
 
         val entry = UndoEntry.Single(speaker)
-        undoStack.addLast(entry)
+        synchronized(undoStack) {
+            undoStack.addLast(entry)
+        }
         _undoOverlay.update { overlay ->
             overlay.copy(
                 pendingDeletedIds = overlay.pendingDeletedIds + speaker.id,
@@ -189,11 +191,16 @@ class SpeechTimerViewModel(private val repository: SpeakerRepository) : ViewMode
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {
-                    undoStack.remove(entry)
+                    val stackNotEmpty = synchronized(undoStack) {
+                        undoStack.remove(entry)
+                        undoStack.isNotEmpty()
+                    }
                     _undoOverlay.update { overlay ->
+                        val nextVersion = (overlay.restoreVersions[speaker.id] ?: 0) + 1
                         overlay.copy(
                             pendingDeletedIds = overlay.pendingDeletedIds - speaker.id,
-                            canUndo = undoStack.isNotEmpty()
+                            restoreVersions = overlay.restoreVersions + (speaker.id to nextVersion),
+                            canUndo = stackNotEmpty
                         )
                     }
                     _error.value = SpeakerError.DeleteFailed
@@ -210,7 +217,9 @@ class SpeechTimerViewModel(private val repository: SpeakerRepository) : ViewMode
 
         val entry = UndoEntry.Bulk(snapshot)
         val snapshotIds = snapshot.mapTo(mutableSetOf()) { it.id }
-        undoStack.addLast(entry)
+        synchronized(undoStack) {
+            undoStack.addLast(entry)
+        }
         _undoOverlay.update { overlay ->
             overlay.copy(
                 pendingDeletedIds = overlay.pendingDeletedIds + snapshotIds,
@@ -227,11 +236,14 @@ class SpeechTimerViewModel(private val repository: SpeakerRepository) : ViewMode
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {
-                    undoStack.remove(entry)
+                    val stackNotEmpty = synchronized(undoStack) {
+                        undoStack.remove(entry)
+                        undoStack.isNotEmpty()
+                    }
                     _undoOverlay.update { overlay ->
                         overlay.copy(
                             pendingDeletedIds = overlay.pendingDeletedIds - snapshotIds,
-                            canUndo = undoStack.isNotEmpty()
+                            canUndo = stackNotEmpty
                         )
                     }
                     _error.value = SpeakerError.DeleteAllFailed
@@ -241,11 +253,12 @@ class SpeechTimerViewModel(private val repository: SpeakerRepository) : ViewMode
     }
 
     fun undoDelete() {
-        if (undoStack.isEmpty()) return
+        if (synchronized(undoStack) { undoStack.isEmpty() }) return
 
         viewModelScope.launch {
             dbMutex.withLock {
-                val entry = undoStack.lastOrNull() ?: return@withLock
+                val entry = synchronized(undoStack) { undoStack.lastOrNull() } ?: return@withLock
+                _error.value = null
                 try {
                     val restoredIds = when (entry) {
                         is UndoEntry.Single -> {
@@ -257,7 +270,10 @@ class SpeechTimerViewModel(private val repository: SpeakerRepository) : ViewMode
                             entry.speakers.map { it.id }
                         }
                     }
-                    undoStack.removeLast()
+                    val (stackNotEmpty, previous) = synchronized(undoStack) {
+                        undoStack.remove(entry)
+                        undoStack.isNotEmpty() to undoStack.lastOrNull()
+                    }
                     _undoOverlay.update { overlay ->
                         val updatedVersions = overlay.restoreVersions.toMutableMap()
                         for (id in restoredIds) {
@@ -266,11 +282,11 @@ class SpeechTimerViewModel(private val repository: SpeakerRepository) : ViewMode
                         overlay.copy(
                             pendingDeletedIds = overlay.pendingDeletedIds - restoredIds.toSet(),
                             restoreVersions = updatedVersions,
-                            canUndo = undoStack.isNotEmpty()
+                            canUndo = stackNotEmpty
                         )
                     }
                     _error.value = null
-                    when (val previous = undoStack.lastOrNull()) {
+                    when (previous) {
                         is UndoEntry.Single -> _events.trySend(SpeakerEvent.Deleted(previous.speaker))
                         is UndoEntry.Bulk -> _events.trySend(SpeakerEvent.AllDeleted)
                         null -> Unit
@@ -285,7 +301,9 @@ class SpeechTimerViewModel(private val repository: SpeakerRepository) : ViewMode
     }
 
     fun dismissUndoSnackbar() {
-        undoStack.clear()
+        synchronized(undoStack) {
+            undoStack.clear()
+        }
         _undoOverlay.update { it.copy(canUndo = false) }
     }
 

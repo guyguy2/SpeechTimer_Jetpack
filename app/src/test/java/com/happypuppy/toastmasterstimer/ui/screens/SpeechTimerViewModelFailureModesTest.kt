@@ -3,11 +3,14 @@ package com.happypuppy.toastmasterstimer.ui.screens
 import com.happypuppy.toastmasterstimer.MainDispatcherRule
 import com.happypuppy.toastmasterstimer.data.database.FakeSpeakerDao
 import com.happypuppy.toastmasterstimer.data.database.repository.Speaker
+import com.happypuppy.toastmasterstimer.data.database.repository.SpeakerDao
 import com.happypuppy.toastmasterstimer.data.database.repository.SpeakerRepository
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -174,6 +177,7 @@ class SpeechTimerViewModelFailureModesTest {
         assertNull(vm.uiState.value.error)
         assertFalse(vm.uiState.value.canUndo)
         assertEquals(listOf("Ann"), vm.uiState.value.speakers.map { it.name })
+        assertEquals(1, vm.uiState.value.restoreVersions[ann.id])
     }
 
     @Test
@@ -213,6 +217,64 @@ class SpeechTimerViewModelFailureModesTest {
         assertFalse(vm.uiState.value.canUndo)
         assertTrue(events.isEmpty())
         assertNull(vm.uiState.value.error)
+        job.cancel()
+    }
+
+    @Test
+    fun deleteSpeaker_failureIncrementsRestoreVersionsAndAllowsSubsequentRetry() = runTest {
+        val ann = speaker(1, "Ann")
+        val dao = FakeSpeakerDao(listOf(ann)).apply {
+            deleteError = java.io.IOException("locked")
+        }
+        val vm = viewModel(dao)
+
+        vm.deleteSpeaker(ann)
+
+        assertEquals(SpeakerError.DeleteFailed, vm.uiState.value.error)
+        assertEquals(1, vm.uiState.value.restoreVersions[ann.id])
+        assertFalse(vm.uiState.value.canUndo)
+        assertEquals(listOf("Ann"), vm.uiState.value.speakers.map { it.name })
+
+        vm.deleteSpeaker(ann)
+
+        assertNull(vm.uiState.value.error)
+        assertTrue(vm.uiState.value.canUndo)
+        assertTrue(vm.uiState.value.speakers.isEmpty())
+    }
+
+    @Test
+    fun undoDelete_whenDismissUndoSnackbarRacesDuringRestore_doesNotThrowAndRestoresRow() = runTest {
+        val ann = speaker(1, "Ann")
+        val bob = speaker(2, "Bob")
+        val backingDao = FakeSpeakerDao(listOf(ann, bob))
+        val insertGate = CompletableDeferred<Unit>()
+        val suspendingDao = object : SpeakerDao by backingDao {
+            override suspend fun insertSpeaker(speaker: Speaker) {
+                insertGate.await()
+                backingDao.insertSpeaker(speaker)
+            }
+        }
+        val vm = SpeechTimerViewModel(SpeakerRepository(suspendingDao))
+        val events = mutableListOf<SpeakerEvent>()
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) {
+            vm.events.collect { events.add(it) }
+        }
+
+        vm.deleteSpeaker(ann)
+        vm.deleteSpeaker(bob)
+        assertEquals(2, events.size)
+
+        vm.undoDelete()
+        // Simulate snackbar dismissal racing while insertSpeaker(bob) is suspended
+        vm.dismissUndoSnackbar()
+        insertGate.complete(Unit)
+        advanceUntilIdle()
+
+        assertNull(vm.uiState.value.error)
+        assertFalse(vm.uiState.value.canUndo)
+        assertEquals(listOf("Bob"), vm.uiState.value.speakers.map { it.name })
+        assertEquals(1, vm.uiState.value.restoreVersions[bob.id])
+        assertEquals(2, events.size)
         job.cancel()
     }
 }
