@@ -5,10 +5,13 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import java.io.IOException
 
 // DataStore for preferences
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -33,8 +36,11 @@ enum class AppTheme(val value: String) {
 
 class DataStoreManager(private val context: Context) {
 
-    // Theme preference
+    // Theme preference; map IOException to defaults so startup splash never stalls on a read error.
     val themeFlow: Flow<AppTheme> = context.dataStore.data
+        .catch { e ->
+            if (e is IOException) emit(emptyPreferences()) else throw e
+        }
         .map { preferences ->
             val themeString = preferences[THEME_KEY] ?: AppTheme.SYSTEM_DEFAULT.value
             AppTheme.fromString(themeString)

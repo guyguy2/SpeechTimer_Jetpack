@@ -133,7 +133,6 @@ class TimerViewModel(
     override fun onCleared() {
         tickJob?.cancel()
         tickJob = null
-        super.onCleared()
     }
 
     fun pause() {
