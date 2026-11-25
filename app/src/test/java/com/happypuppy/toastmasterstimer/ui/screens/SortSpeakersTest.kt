@@ -51,4 +51,13 @@ class SortSpeakersTest {
         assertTrue(names.all { it.isNotBlank() })
         assertEquals(names.size, names.toSet().size)
     }
+
+    @Test
+    fun fromName_resolvesKnownNamesAndFallsBackToDateNewest() {
+        SortOption.entries.forEach { option ->
+            assertEquals(option, SortOption.fromName(option.name))
+        }
+        assertEquals(SortOption.DATE_NEWEST, SortOption.fromName(null))
+        assertEquals(SortOption.DATE_NEWEST, SortOption.fromName("UNKNOWN"))
+    }
 }

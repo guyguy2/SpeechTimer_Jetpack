@@ -22,7 +22,9 @@ data class MainScreenUiState(
 )
 
 sealed interface SpeakerEvent {
-    data class Deleted(val speakerName: String) : SpeakerEvent
+    data class Deleted(val speaker: Speaker) : SpeakerEvent {
+        val speakerName: String get() = speaker.name
+    }
     data object AllDeleted : SpeakerEvent
 }
 
@@ -89,7 +91,7 @@ class SpeechTimerViewModel(private val repository: SpeakerRepository) : ViewMode
     }
 
     fun deleteSpeaker(speaker: Speaker) {
-        runMutation(onSuccess = { _events.tryEmit(SpeakerEvent.Deleted(speaker.name)) }) {
+        runMutation(onSuccess = { _events.tryEmit(SpeakerEvent.Deleted(speaker)) }) {
             repository.deleteSpeaker(speaker)
         }
     }

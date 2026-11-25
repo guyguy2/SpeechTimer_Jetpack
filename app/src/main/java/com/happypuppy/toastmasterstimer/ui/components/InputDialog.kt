@@ -26,7 +26,7 @@ fun InputDialog(
     title: String = "Enter Name",
     initialText: String = ""
 ) {
-    var text by rememberSaveable { mutableStateOf(initialText) }
+    var text by rememberSaveable(initialText) { mutableStateOf(initialText) }
     val trimmed = text.trim()
     val focusRequester = remember { FocusRequester() }
 

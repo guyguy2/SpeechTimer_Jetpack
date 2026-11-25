@@ -13,6 +13,8 @@ import androidx.compose.ui.test.tryPerformAccessibilityChecks
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.happypuppy.toastmasterstimer.data.database.repository.Speaker
 import com.happypuppy.toastmasterstimer.data.database.repository.SpeakerRepository
+import com.happypuppy.toastmasterstimer.data.preferences.DataStoreManager
+import com.happypuppy.toastmasterstimer.ui.screens.SortOption
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Rule
@@ -33,9 +35,15 @@ class ScreenAccessibilityTest {
     private val repository: SpeakerRepository
         get() = GlobalContext.get().get()
 
+    private val dataStoreManager: DataStoreManager
+        get() = GlobalContext.get().get()
+
     @Before
     fun prepare() {
-        runBlocking { repository.deleteAllSpeakers() }
+        runBlocking {
+            repository.deleteAllSpeakers()
+            dataStoreManager.setSavedSortOption(SortOption.DATE_NEWEST)
+        }
         rule.enableAccessibilityChecks()
     }
 
