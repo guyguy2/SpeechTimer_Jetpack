@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -32,8 +33,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -50,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLocale
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -58,10 +62,14 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.happypuppy.toastmasterstimer.R
 import com.happypuppy.toastmasterstimer.data.database.repository.Speaker
+import com.happypuppy.toastmasterstimer.data.preferences.DataStoreManager
 import com.happypuppy.toastmasterstimer.navigation.Screen
+import com.happypuppy.toastmasterstimer.ui.components.InputDialog
 import com.happypuppy.toastmasterstimer.ui.components.SpeechTimerBottomBar
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -71,7 +79,11 @@ enum class SortOption(val displayName: String) {
     NAME_ASC("Name (A-Z)"),
     NAME_DESC("Name (Z-A)"),
     TYPE_ASC("Speech Type (A-Z)"),
-    TYPE_DESC("Speech Type (Z-A)")
+    TYPE_DESC("Speech Type (Z-A)");
+
+    companion object {
+        fun fromName(raw: String?): SortOption = entries.firstOrNull { it.name == raw } ?: DATE_NEWEST
+    }
 }
 
 fun sortSpeakers(speakers: List<Speaker>, option: SortOption): List<Speaker> = when (option) {
@@ -94,27 +106,46 @@ fun SavedDataScreen(
     val isLoading = uiState.isLoading
     val error = uiState.error
     val context = LocalContext.current
+    val resources = LocalResources.current
+    val dataStoreManager = koinInject<DataStoreManager>()
 
     var showSortOptions by rememberSaveable { mutableStateOf(false) }
-    var currentSortOption by remember { mutableStateOf(SortOption.DATE_NEWEST) }
+    var currentSortOption by rememberSaveable { mutableStateOf(SortOption.DATE_NEWEST) }
+    LaunchedEffect(dataStoreManager) {
+        dataStoreManager.savedSortOptionFlow.collect { stored ->
+            currentSortOption = stored
+        }
+    }
 
     val sortedSpeakers = remember(speakers, currentSortOption) {
         sortSpeakers(speakers, currentSortOption)
     }
 
+    var editingSpeakerId by rememberSaveable { mutableStateOf<Int?>(null) }
     var showConfirmDialog by rememberSaveable { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    // Show delete confirmations only after the database write actually succeeds
+    // Show delete confirmations (with Undo for single-row delete) only after the database write succeeds
     LaunchedEffect(viewModel) {
-        viewModel.events.collect { event ->
+        viewModel.events.collectLatest { event ->
             when (event) {
-                is SpeakerEvent.Deleted ->
-                    snackbarHostState.showSnackbar("Deleted ${event.speakerName}'s speech data")
+                is SpeakerEvent.Deleted -> {
+                    snackbarHostState.currentSnackbarData?.dismiss()
+                    val result = snackbarHostState.showSnackbar(
+                        message = resources.getString(R.string.saved_deleted_snackbar, event.speakerName),
+                        actionLabel = resources.getString(R.string.saved_undo),
+                        duration = SnackbarDuration.Long
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.restoreSpeaker(event.speaker)
+                    }
+                }
 
-                SpeakerEvent.AllDeleted ->
-                    snackbarHostState.showSnackbar("All speech data cleared")
+                SpeakerEvent.AllDeleted -> {
+                    snackbarHostState.currentSnackbarData?.dismiss()
+                    snackbarHostState.showSnackbar(resources.getString(R.string.saved_all_deleted_snackbar))
+                }
             }
         }
     }
@@ -218,6 +249,9 @@ fun SavedDataScreen(
             } else {
                 SpeechDataList(
                     speakers = sortedSpeakers,
+                    onEditClick = { speaker ->
+                        editingSpeakerId = speaker.id
+                    },
                     onShareClick = { speaker ->
                         val launched = shareSingleSpeaker(context, speaker)
                         scope.launch {
@@ -230,6 +264,19 @@ fun SavedDataScreen(
                     onDeleteClick = { speaker ->
                         viewModel.deleteSpeaker(speaker)
                     }
+                )
+            }
+
+            val editingSpeaker = editingSpeakerId?.let { id -> speakers.firstOrNull { it.id == id } }
+            if (editingSpeaker != null) {
+                InputDialog(
+                    onDismiss = { editingSpeakerId = null },
+                    onConfirm = { newName ->
+                        viewModel.updateSpeakerName(editingSpeaker, newName)
+                        editingSpeakerId = null
+                    },
+                    title = stringResource(R.string.saved_edit_dialog_title),
+                    initialText = editingSpeaker.name
                 )
             }
 
@@ -271,6 +318,7 @@ fun SavedDataScreen(
                                         .clickable {
                                             currentSortOption = option
                                             showSortOptions = false
+                                            scope.launch { dataStoreManager.setSavedSortOption(option) }
                                         }
                                         .padding(vertical = 8.dp),
                                     verticalAlignment = Alignment.CenterVertically
@@ -280,6 +328,7 @@ fun SavedDataScreen(
                                         onClick = {
                                             currentSortOption = option
                                             showSortOptions = false
+                                            scope.launch { dataStoreManager.setSavedSortOption(option) }
                                         }
                                     )
                                     Text(
@@ -305,6 +354,7 @@ fun SavedDataScreen(
 @Composable
 fun SpeechDataList(
     speakers: List<Speaker>,
+    onEditClick: (Speaker) -> Unit,
     onShareClick: (Speaker) -> Unit,
     onDeleteClick: (Speaker) -> Unit
 ) {
@@ -317,6 +367,7 @@ fun SpeechDataList(
         items(items = speakers, key = { it.id }) { speaker ->
             SpeakerCard(
                 speaker = speaker,
+                onEditClick = { onEditClick(speaker) },
                 onShareClick = { onShareClick(speaker) },
                 onDeleteClick = { onDeleteClick(speaker) }
             )
@@ -327,12 +378,17 @@ fun SpeechDataList(
 @Composable
 fun SpeakerCard(
     speaker: Speaker,
+    onEditClick: () -> Unit,
     onShareClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
     val locale = LocalLocale.current.platformLocale
     val dateFormat = remember(locale) { SimpleDateFormat("MMM dd, yyyy HH:mm", locale) }
     val formattedDate = remember(speaker.createdAt, dateFormat) { dateFormat.format(speaker.createdAt) }
+    val targetRange = remember(speaker.minSeconds, speaker.maxSeconds) {
+        formatTargetRangeMinutes(speaker.minSeconds, speaker.maxSeconds)
+    }
+    val phase = remember(speaker.phaseReached) { parseTimerPhase(speaker.phaseReached) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -368,6 +424,24 @@ fun SpeakerCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
+            if (targetRange != null) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = stringResource(R.string.saved_target_range_minutes, targetRange),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            if (phase != null) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = stringResource(phaseCue(phase).labelRes),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
@@ -382,6 +456,14 @@ fun SpeakerCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
             ) {
+                IconButton(onClick = onEditClick) {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = stringResource(R.string.saved_row_edit, speaker.name, speaker.speechType),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+
                 IconButton(onClick = onShareClick) {
                     Icon(
                         Icons.Default.Share,
@@ -452,16 +534,6 @@ fun EmptyStateContent(onAddSpeech: () -> Unit) {
     }
 }
 
-private fun formatSpeakerSummary(speaker: Speaker, dateFormat: SimpleDateFormat): String {
-    val formattedDate = dateFormat.format(speaker.createdAt)
-    return """
-        Name: ${speaker.name}
-        Speech Type: ${speaker.speechType}
-        Duration: ${speaker.duration}
-        Recorded on: $formattedDate
-    """.trimIndent()
-}
-
 private fun launchShareChooser(context: Context, text: String, chooserTitle: String): Boolean {
     val sendIntent = Intent(Intent.ACTION_SEND).apply {
         putExtra(Intent.EXTRA_TEXT, text)
@@ -477,24 +549,14 @@ private fun launchShareChooser(context: Context, text: String, chooserTitle: Str
 
 fun shareSingleSpeaker(context: Context, speaker: Speaker): Boolean {
     val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
-    val shareText = buildString {
-        appendLine("Simple Speech Timer - Speaker Data")
-        appendLine()
-        appendLine(formatSpeakerSummary(speaker, dateFormat))
-        appendLine()
-        append("Created with Simple Speech Timer App")
-    }
-    return launchShareChooser(context, shareText, "Share Speech Data")
+    val labels = SpeakerShareLabels.fromResources(context.resources)
+    val shareText = formatSingleSpeakerShareText(speaker, dateFormat.format(speaker.createdAt), labels)
+    return launchShareChooser(context, shareText, context.getString(R.string.share_chooser_single))
 }
 
 fun shareSpeakerData(context: Context, speakers: List<Speaker>): Boolean {
     val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
-    val shareText = speakers.joinToString(
-        prefix = "Simple Speech Timer - Speaker Data\n\n",
-        separator = "\n--------------------------\n",
-        postfix = "\n\nCreated with Simple Speech Timer App for Android"
-    ) { speaker ->
-        formatSpeakerSummary(speaker, dateFormat)
-    }
-    return launchShareChooser(context, shareText, "Share All Speech Data")
+    val labels = SpeakerShareLabels.fromResources(context.resources)
+    val shareText = formatAllSpeakersShareText(speakers, dateFormat::format, labels)
+    return launchShareChooser(context, shareText, context.getString(R.string.share_chooser_all))
 }

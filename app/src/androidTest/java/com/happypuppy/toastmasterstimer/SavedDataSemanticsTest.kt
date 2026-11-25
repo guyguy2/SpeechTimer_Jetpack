@@ -25,6 +25,7 @@ class SavedDataSemanticsTest {
     private val alex = Speaker(id = 1, name = "Alex Morgan", speechType = "TABLE TOPICS", duration = "01:30")
     private val sam = Speaker(id = 2, name = "Sam Lee", speechType = "SPEECH", duration = "05:10")
 
+    private val edited = mutableListOf<String>()
     private val shared = mutableListOf<String>()
     private val deleted = mutableListOf<String>()
 
@@ -32,6 +33,7 @@ class SavedDataSemanticsTest {
         MaterialTheme {
             SpeechDataList(
                 speakers = listOf(alex, sam),
+                onEditClick = { edited += it.name },
                 onShareClick = { shared += it.name },
                 onDeleteClick = { deleted += it.name }
             )
@@ -41,8 +43,10 @@ class SavedDataSemanticsTest {
     @Test
     fun everyRowNamesItsSpeakerAndSpeechType() {
         show()
+        rule.onNodeWithContentDescription("Edit Alex Morgan, TABLE TOPICS").assertExists()
         rule.onNodeWithContentDescription("Delete Alex Morgan, TABLE TOPICS").assertExists()
         rule.onNodeWithContentDescription("Share Alex Morgan, TABLE TOPICS").assertExists()
+        rule.onNodeWithContentDescription("Edit Sam Lee, SPEECH").assertExists()
         rule.onNodeWithContentDescription("Delete Sam Lee, SPEECH").assertExists()
         rule.onNodeWithContentDescription("Share Sam Lee, SPEECH").assertExists()
     }
@@ -50,6 +54,7 @@ class SavedDataSemanticsTest {
     @Test
     fun noRowUsesTheBareDeleteOrShareLabel() {
         show()
+        rule.onAllNodesWithContentDescription("Edit").assertCountEquals(0)
         rule.onAllNodesWithContentDescription("Delete").assertCountEquals(0)
         rule.onAllNodesWithContentDescription("Share").assertCountEquals(0)
     }
@@ -57,8 +62,10 @@ class SavedDataSemanticsTest {
     @Test
     fun labelledButtonsStillActOnTheirOwnRow() {
         show()
+        rule.onNodeWithContentDescription("Edit Alex Morgan, TABLE TOPICS").performClick()
         rule.onNodeWithContentDescription("Delete Sam Lee, SPEECH").performClick()
         rule.onNodeWithContentDescription("Share Alex Morgan, TABLE TOPICS").performClick()
+        assertEquals(listOf("Alex Morgan"), edited)
         assertEquals(listOf("Sam Lee"), deleted)
         assertEquals(listOf("Alex Morgan"), shared)
     }

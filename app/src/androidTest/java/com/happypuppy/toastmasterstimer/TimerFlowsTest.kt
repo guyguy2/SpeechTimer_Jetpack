@@ -14,11 +14,14 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.printToString
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.happypuppy.toastmasterstimer.data.database.repository.Speaker
 import com.happypuppy.toastmasterstimer.data.database.repository.SpeakerRepository
+import com.happypuppy.toastmasterstimer.data.preferences.DataStoreManager
+import com.happypuppy.toastmasterstimer.ui.screens.SortOption
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
@@ -41,9 +44,13 @@ class TimerFlowsTest {
     private val repository: SpeakerRepository
         get() = GlobalContext.get().get()
 
+    private val dataStoreManager: DataStoreManager
+        get() = GlobalContext.get().get()
+
     @Before
     fun clearDatabase() = runBlocking {
         repository.deleteAllSpeakers()
+        dataStoreManager.setSavedSortOption(SortOption.DATE_NEWEST)
     }
 
     private fun AndroidComposeTestRule<*, *>.waitForText(text: String, timeoutMs: Long = 10_000) {
@@ -314,5 +321,81 @@ class TimerFlowsTest {
         rule.onNodeWithText("Add New Speech").performClick()
 
         rule.waitForText("TABLE TOPICS (1 TO 2 MIN)")
+    }
+
+    @Test
+    fun saveResult_displaysTargetRangeAndPhaseReachedInSavedData() {
+        openTableTopicsTimer()
+        rule.onNodeWithContentDescription("Start timer").performClick()
+        rule.waitForText("00:02")
+        rule.onNodeWithContentDescription("Pause timer").performClick()
+
+        rule.onNodeWithContentDescription("Save result").performClick()
+        rule.onNode(hasSetTextAction()).performTextInput("Alex Morgan")
+        rule.onNodeWithText("Save").performClick()
+
+        rule.waitForText("Saved Alex Morgan's speech data")
+        rule.onNodeWithText("VIEW DATA").performClick()
+
+        rule.waitForText("Alex Morgan")
+        rule.onNodeWithText("TABLE TOPICS").assertExists()
+        rule.onNodeWithText("Target: 1\u20132 min").assertExists()
+        rule.onNodeWithText("Before green").assertExists()
+    }
+
+    @Test
+    fun deleteSpeaker_undoRestoresDeletedRow() {
+        runBlocking {
+            repository.insertSpeaker(
+                Speaker(
+                    name = "Alex Morgan",
+                    speechType = "TABLE TOPICS",
+                    duration = "01:30",
+                    speechTypeId = "table_topics",
+                    minSeconds = 60,
+                    maxSeconds = 120,
+                    elapsedSeconds = 90,
+                    phaseReached = "GREEN"
+                )
+            )
+        }
+        awaitMainScreen()
+        rule.onNodeWithText("Saved Data").performClick()
+        rule.waitForText("Alex Morgan")
+
+        rule.onNodeWithContentDescription("Delete Alex Morgan, TABLE TOPICS").performClick()
+        rule.waitForText("No Saved Speech Data")
+        rule.waitForText("Undo")
+        rule.onNodeWithText("Undo").performClick()
+
+        rule.waitForText("Alex Morgan")
+        rule.onNodeWithText("Target: 1\u20132 min").assertExists()
+        rule.onNodeWithText("Green: minimum reached").assertExists()
+        check(runBlocking { repository.getAllSpeakers().first() }.single().name == "Alex Morgan")
+    }
+
+    @Test
+    fun editSpeaker_updatesNameAndPersists() {
+        runBlocking {
+            repository.insertSpeaker(
+                Speaker(
+                    name = "Alex Morgan",
+                    speechType = "SPEECH",
+                    duration = "05:30"
+                )
+            )
+        }
+        awaitMainScreen()
+        rule.onNodeWithText("Saved Data").performClick()
+        rule.waitForText("Alex Morgan")
+
+        rule.onNodeWithContentDescription("Edit Alex Morgan, SPEECH").performClick()
+        rule.waitForText("Edit Speaker Name")
+        rule.onNode(hasSetTextAction()).performTextReplacement("Jordan Taylor")
+        rule.onNodeWithText("Save").performClick()
+
+        rule.waitForText("Jordan Taylor")
+        rule.onAllNodesWithText("Alex Morgan").assertCountEquals(0)
+        check(runBlocking { repository.getAllSpeakers().first() }.single().name == "Jordan Taylor")
     }
 }

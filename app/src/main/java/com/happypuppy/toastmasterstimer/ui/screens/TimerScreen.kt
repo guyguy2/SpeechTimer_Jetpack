@@ -263,7 +263,12 @@ fun TimerScreen(
                     viewModel.saveSpeaker(
                         name = name,
                         speechType = speechType,
-                        duration = formattedTime
+                        duration = formattedTime,
+                        speechTypeId = route.speechType.id,
+                        minSeconds = thresholds.greenSeconds,
+                        maxSeconds = thresholds.redSeconds,
+                        elapsedSeconds = ticks,
+                        phaseReached = currentPhase.name
                     )
 
                     scope.launch {

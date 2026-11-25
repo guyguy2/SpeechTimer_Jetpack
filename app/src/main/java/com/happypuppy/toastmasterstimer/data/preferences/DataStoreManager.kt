@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.happypuppy.toastmasterstimer.ui.screens.SortOption
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -20,6 +21,7 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "se
 val THEME_KEY = stringPreferencesKey("app_theme")
 val VIBRATE_KEY = booleanPreferencesKey("vibrate_enabled")
 val SOUND_KEY = booleanPreferencesKey("sound_enabled")
+val SAVED_SORT_KEY = stringPreferencesKey("saved_sort_option")
 
 // Theme options
 enum class AppTheme(val value: String) {
@@ -73,6 +75,21 @@ class DataStoreManager(private val context: Context) {
     suspend fun setSoundEnabled(enabled: Boolean) {
         context.dataStore.edit { settings ->
             settings[SOUND_KEY] = enabled
+        }
+    }
+
+    // Saved speeches sort order preference (default: DATE_NEWEST)
+    val savedSortOptionFlow: Flow<SortOption> = context.dataStore.data
+        .catch { e ->
+            if (e is IOException) emit(emptyPreferences()) else throw e
+        }
+        .map { preferences ->
+            SortOption.fromName(preferences[SAVED_SORT_KEY])
+        }
+
+    suspend fun setSavedSortOption(option: SortOption) {
+        context.dataStore.edit { settings ->
+            settings[SAVED_SORT_KEY] = option.name
         }
     }
 }

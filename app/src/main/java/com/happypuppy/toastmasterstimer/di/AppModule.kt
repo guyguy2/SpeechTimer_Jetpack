@@ -2,6 +2,7 @@ package com.happypuppy.toastmasterstimer.di
 
 import androidx.room.Room
 import com.happypuppy.toastmasterstimer.data.database.repository.AppDatabase
+import com.happypuppy.toastmasterstimer.data.database.repository.MIGRATION_2_3
 import com.happypuppy.toastmasterstimer.data.database.repository.SpeakerRepository
 import com.happypuppy.toastmasterstimer.data.preferences.DataStoreManager
 import com.happypuppy.toastmasterstimer.ui.screens.SpeechTimerViewModel
@@ -19,6 +20,7 @@ val appModule = module {
             AppDatabase::class.java,
             "app_database"
         )
+            .addMigrations(MIGRATION_2_3)
             .fallbackToDestructiveMigrationFrom(dropAllTables = true, 1)
             .build()
     }

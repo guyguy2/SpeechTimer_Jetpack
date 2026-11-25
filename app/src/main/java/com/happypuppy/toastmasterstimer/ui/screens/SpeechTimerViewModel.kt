@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.happypuppy.toastmasterstimer.data.database.repository.Speaker
 import com.happypuppy.toastmasterstimer.data.database.repository.SpeakerRepository
+import com.happypuppy.toastmasterstimer.data.database.repository.UNKNOWN_SPEECH_TYPE_ID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,7 +22,9 @@ data class MainScreenUiState(
 )
 
 sealed interface SpeakerEvent {
-    data class Deleted(val speakerName: String) : SpeakerEvent
+    data class Deleted(val speaker: Speaker) : SpeakerEvent {
+        val speakerName: String get() = speaker.name
+    }
     data object AllDeleted : SpeakerEvent
 }
 
@@ -45,7 +48,16 @@ class SpeechTimerViewModel(private val repository: SpeakerRepository) : ViewMode
         }
     }
 
-    fun saveSpeaker(name: String, speechType: String, duration: String) {
+    fun saveSpeaker(
+        name: String,
+        speechType: String,
+        duration: String,
+        speechTypeId: String = UNKNOWN_SPEECH_TYPE_ID,
+        minSeconds: Int? = null,
+        maxSeconds: Int? = null,
+        elapsedSeconds: Int? = null,
+        phaseReached: String? = null
+    ) {
         val trimmedName = name.trim()
         if (trimmedName.isEmpty()) return
         runMutation {
@@ -53,14 +65,33 @@ class SpeechTimerViewModel(private val repository: SpeakerRepository) : ViewMode
                 Speaker(
                     name = trimmedName,
                     speechType = speechType,
-                    duration = duration
+                    duration = duration,
+                    speechTypeId = speechTypeId,
+                    minSeconds = minSeconds,
+                    maxSeconds = maxSeconds,
+                    elapsedSeconds = elapsedSeconds,
+                    phaseReached = phaseReached
                 )
             )
         }
     }
 
+    fun updateSpeakerName(speaker: Speaker, newName: String) {
+        val trimmedName = newName.trim()
+        if (trimmedName.isEmpty() || trimmedName == speaker.name) return
+        runMutation {
+            repository.updateSpeaker(speaker.copy(name = trimmedName))
+        }
+    }
+
+    fun restoreSpeaker(speaker: Speaker) {
+        runMutation {
+            repository.insertSpeaker(speaker)
+        }
+    }
+
     fun deleteSpeaker(speaker: Speaker) {
-        runMutation(onSuccess = { _events.tryEmit(SpeakerEvent.Deleted(speaker.name)) }) {
+        runMutation(onSuccess = { _events.tryEmit(SpeakerEvent.Deleted(speaker)) }) {
             repository.deleteSpeaker(speaker)
         }
     }

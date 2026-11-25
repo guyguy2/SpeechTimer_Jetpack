@@ -90,7 +90,7 @@ class SpeechTimerViewModelTest {
         vm.deleteSpeaker(ann)
 
         assertEquals(listOf("Bob"), vm.uiState.value.speakers.map { it.name })
-        assertEquals(listOf(SpeakerEvent.Deleted("Ann")), events)
+        assertEquals(listOf(SpeakerEvent.Deleted(ann)), events)
         collectJob.cancel()
     }
 
@@ -227,5 +227,103 @@ class SpeechTimerViewModelTest {
             listOf("bob", "charlie", "Alice"),
             sortSpeakers(speakers, SortOption.DATE_OLDEST).map { it.name }
         )
+    }
+
+    @Test
+    fun saveSpeaker_storesAllV3MetadataFields() = runTest {
+        val dao = FakeSpeakerDao()
+        val vm = viewModel(dao)
+
+        vm.saveSpeaker(
+            name = "Dana",
+            speechType = "TABLE TOPICS",
+            duration = "01:35",
+            speechTypeId = "table_topics",
+            minSeconds = 60,
+            maxSeconds = 120,
+            elapsedSeconds = 95,
+            phaseReached = "YELLOW"
+        )
+
+        val saved = dao.current.single()
+        assertEquals("Dana", saved.name)
+        assertEquals("table_topics", saved.speechTypeId)
+        assertEquals(60, saved.minSeconds)
+        assertEquals(120, saved.maxSeconds)
+        assertEquals(95, saved.elapsedSeconds)
+        assertEquals("YELLOW", saved.phaseReached)
+    }
+
+    @Test
+    fun restoreSpeaker_preservesIdCreatedAtAndMetadata() = runTest {
+        val original = Speaker(
+            id = 42,
+            name = "Ann",
+            speechType = "EVALUATION",
+            duration = "02:30",
+            createdAt = Date(12_345L),
+            speechTypeId = "evaluation",
+            minSeconds = 120,
+            maxSeconds = 180,
+            elapsedSeconds = 150,
+            phaseReached = "YELLOW"
+        )
+        val dao = FakeSpeakerDao(listOf(original))
+        val vm = viewModel(dao)
+
+        vm.deleteSpeaker(original)
+        assertTrue(dao.current.isEmpty())
+
+        vm.restoreSpeaker(original)
+        val restored = vm.uiState.value.speakers.single()
+        assertEquals(original, restored)
+    }
+
+    @Test
+    fun updateSpeakerName_trimsAndPreservesOtherFields() = runTest {
+        val original = Speaker(
+            id = 7,
+            name = "Ann",
+            speechType = "SPEECH",
+            duration = "05:30",
+            createdAt = Date(9_000L),
+            speechTypeId = "speech",
+            minSeconds = 300,
+            maxSeconds = 420,
+            elapsedSeconds = 330,
+            phaseReached = "GREEN"
+        )
+        val dao = FakeSpeakerDao(listOf(original))
+        val vm = viewModel(dao)
+
+        vm.updateSpeakerName(original, "  Ann Updated  ")
+
+        val updated = vm.uiState.value.speakers.single()
+        assertEquals(original.copy(name = "Ann Updated"), updated)
+    }
+
+    @Test
+    fun updateSpeakerName_ignoresBlankOrUnchangedName() = runTest {
+        val original = speaker(1, "Ann")
+        val dao = FakeSpeakerDao(listOf(original)).apply { updateError = IOException("should not run") }
+        val vm = viewModel(dao)
+
+        vm.updateSpeakerName(original, "   ")
+        vm.updateSpeakerName(original, "  Ann  ")
+
+        assertNull(vm.uiState.value.error)
+        assertEquals("Ann", vm.uiState.value.speakers.single().name)
+    }
+
+    @Test
+    fun updateSpeakerName_failureSurfacesError() = runTest {
+        val original = speaker(1, "Ann")
+        val dao = FakeSpeakerDao(listOf(original)).apply { updateError = IOException("disk full") }
+        val vm = viewModel(dao)
+
+        vm.updateSpeakerName(original, "Bea")
+
+        assertEquals("disk full", vm.uiState.value.error)
+        assertEquals("Ann", vm.uiState.value.speakers.single().name)
     }
 }

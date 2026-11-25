@@ -4,6 +4,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.happypuppy.toastmasterstimer.data.preferences.AppTheme
 import com.happypuppy.toastmasterstimer.data.preferences.DataStoreManager
+import com.happypuppy.toastmasterstimer.ui.screens.SortOption
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -55,6 +56,19 @@ class DataStoreManagerTest {
             assertEquals(false, manager.soundEnabledFlow.first())
         } finally {
             manager.setSoundEnabled(original)
+        }
+    }
+
+    @Test
+    fun savedSortOption_roundTripsEveryOption() = runBlocking {
+        val original = manager.savedSortOptionFlow.first()
+        try {
+            SortOption.entries.forEach { option ->
+                manager.setSavedSortOption(option)
+                assertEquals(option, manager.savedSortOptionFlow.first())
+            }
+        } finally {
+            manager.setSavedSortOption(original)
         }
     }
 }
