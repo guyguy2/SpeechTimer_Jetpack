@@ -41,6 +41,9 @@ interface SpeakerDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSpeaker(speaker: Speaker)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSpeakers(speakers: List<Speaker>)
+
     @Update
     suspend fun updateSpeaker(speaker: Speaker)
 
@@ -97,6 +100,7 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
 class SpeakerRepository(private val speakerDao: SpeakerDao) {
     fun getAllSpeakers(): Flow<List<Speaker>> = speakerDao.getAllSpeakers()
     suspend fun insertSpeaker(speaker: Speaker) = speakerDao.insertSpeaker(speaker)
+    suspend fun insertSpeakers(speakers: List<Speaker>) = speakerDao.insertSpeakers(speakers)
     suspend fun updateSpeaker(speaker: Speaker) = speakerDao.updateSpeaker(speaker)
     suspend fun deleteSpeaker(speaker: Speaker) = speakerDao.deleteSpeaker(speaker)
     suspend fun deleteAllSpeakers() = speakerDao.deleteAllSpeakers()

@@ -7,28 +7,10 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
@@ -38,12 +20,11 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.happypuppy.toastmasterstimer.data.preferences.AppTheme
 import com.happypuppy.toastmasterstimer.data.preferences.DataStoreManager
-import com.happypuppy.toastmasterstimer.model.SpeechType
 import com.happypuppy.toastmasterstimer.navigation.Screen
 import com.happypuppy.toastmasterstimer.navigation.Screen.SavedDataScreen
+import com.happypuppy.toastmasterstimer.navigation.SpeechTimerNavigationShell
 import com.happypuppy.toastmasterstimer.navigation.TimerRoute
-import com.happypuppy.toastmasterstimer.ui.components.SpeechTimerBottomBar
-import com.happypuppy.toastmasterstimer.ui.components.SpeechTimerButton
+import com.happypuppy.toastmasterstimer.ui.screens.MainScreen
 import com.happypuppy.toastmasterstimer.ui.screens.SavedDataScreen
 import com.happypuppy.toastmasterstimer.ui.screens.SettingsScreen
 import com.happypuppy.toastmasterstimer.ui.screens.SpeechTimePicker
@@ -106,7 +87,9 @@ class MainActivity : ComponentActivity() {
                 dynamicColor = resolvedDynamicColor
             ) {
                 val navController = rememberNavController()
-                NavGraph(navController = navController, koinViewModel = koinViewModel)
+                SpeechTimerNavigationShell(navController = navController) {
+                    NavGraph(navController = navController, koinViewModel = koinViewModel)
+                }
             }
         }
     }
@@ -122,7 +105,7 @@ class MainActivity : ComponentActivity() {
 fun NavGraph(navController: NavHostController, koinViewModel: SpeechTimerViewModel) {
     NavHost(navController = navController, startDestination = Screen.Main.route) {
         composable(Screen.Main.route) {
-            MainScreen(navController = navController)
+            MainScreen(navController = navController, viewModel = koinViewModel)
         }
         composable(Screen.Settings.route) {
             SettingsScreen(navController)
@@ -143,53 +126,6 @@ fun NavGraph(navController: NavHostController, koinViewModel: SpeechTimerViewMod
         }
         composable(SavedDataScreen.route) {
             SavedDataScreen(navController, koinViewModel)
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun MainScreen(navController: NavHostController, modifier: Modifier = Modifier) {
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = {
-            TopAppBar(
-                title = { Text(text = stringResource(R.string.app_name)) },
-                navigationIcon = {
-                    Icon(
-                        painter = painterResource(R.drawable.hourglass_top_24px),
-                        contentDescription = null,
-                        modifier = Modifier.padding(start = 12.dp)
-                    )
-                },
-                actions = {
-                    IconButton(onClick = { navController.navigate(Screen.Settings.route) }) {
-                        Icon(
-                            Icons.Filled.Settings,
-                            contentDescription = stringResource(R.string.nav_settings)
-                        )
-                    }
-                }
-            )
-        },
-        bottomBar = {
-            SpeechTimerBottomBar(
-                currentRoute = Screen.Main.route,
-                navController = navController
-            )
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 8.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            SpeechType.presets.forEach { type ->
-                SpeechTimerButton(speechType = type, navController = navController)
-            }
         }
     }
 }

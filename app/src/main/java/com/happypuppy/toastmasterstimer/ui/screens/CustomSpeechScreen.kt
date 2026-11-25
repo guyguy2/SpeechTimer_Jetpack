@@ -1,6 +1,7 @@
 package com.happypuppy.toastmasterstimer.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -33,10 +35,9 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.happypuppy.toastmasterstimer.R
 import com.happypuppy.toastmasterstimer.model.SpeechType
-import com.happypuppy.toastmasterstimer.navigation.Screen
 import com.happypuppy.toastmasterstimer.navigation.TimerRoute
 import com.happypuppy.toastmasterstimer.ui.components.MinutePicker
-import com.happypuppy.toastmasterstimer.ui.components.SpeechTimerBottomBar
+import com.happypuppy.toastmasterstimer.ui.layout.ADAPTIVE_COMPACT_FORM_MAX_WIDTH
 import com.happypuppy.toastmasterstimer.util.CustomSpeechRange
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,12 +51,6 @@ fun SpeechTimePicker(navController: NavHostController) {
             TopAppBar(
                 title = { Text(stringResource(R.string.custom_speech_title)) }
             )
-        },
-        bottomBar = {
-            SpeechTimerBottomBar(
-                currentRoute = Screen.CustomSpeechScreen.route,
-                navController = navController
-            )
         }
     ) { paddingValues ->
         Surface(
@@ -64,14 +59,19 @@ fun SpeechTimePicker(navController: NavHostController) {
                 .padding(paddingValues),
             color = MaterialTheme.colorScheme.background
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.SpaceBetween
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.TopCenter
             ) {
+                Column(
+                    modifier = Modifier
+                        .widthIn(max = ADAPTIVE_COMPACT_FORM_MAX_WIDTH)
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.fillMaxWidth()
@@ -154,6 +154,7 @@ fun SpeechTimePicker(navController: NavHostController) {
                         text = stringResource(R.string.custom_speech_start_timer),
                         style = MaterialTheme.typography.titleMedium
                     )
+                }
                 }
             }
         }
