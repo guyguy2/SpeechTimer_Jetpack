@@ -29,8 +29,29 @@
     <string name="timer_progress_description">Time progress</string>
 
     <!-- Per-row actions in Saved Data: %1$s is the speaker, %2$s the speech type -->
+    <string name="saved_row_edit">Edit %1$s, %2$s</string>
     <string name="saved_row_share">Share %1$s, %2$s</string>
     <string name="saved_row_delete">Delete %1$s, %2$s</string>
+
+    <!-- Saved Data UI -->
+    <string name="saved_edit_dialog_title">Edit Speaker Name</string>
+    <string name="saved_deleted_snackbar">Deleted %1$s\'s speech data</string>
+    <string name="saved_all_deleted_snackbar">All speech data cleared</string>
+    <string name="saved_undo">Undo</string>
+    <string name="saved_target_range_minutes">Target: %1$s min</string>
+
+    <!-- Share text templates and labels -->
+    <string name="share_header">Simple Speech Timer - Speaker Data</string>
+    <string name="share_footer_single">Created with Simple Speech Timer App</string>
+    <string name="share_footer_all">Created with Simple Speech Timer App for Android</string>
+    <string name="share_chooser_single">Share Speech Data</string>
+    <string name="share_chooser_all">Share All Speech Data</string>
+    <string name="share_field_name">Name: %1$s</string>
+    <string name="share_field_speech_type">Speech Type: %1$s</string>
+    <string name="share_field_target_range">Target Range: %1$s min</string>
+    <string name="share_field_duration">Duration: %1$s</string>
+    <string name="share_field_phase">Phase Reached: %1$s</string>
+    <string name="share_field_recorded_on">Recorded on: %1$s</string>
 
     <!-- Shown under the digits while the timer is paused -->
     <string name="timer_paused">Paused</string>
