@@ -332,7 +332,6 @@ private fun TimerReadout(
                 phasePalette.onBackground
             },
             maxLines = 1,
-            softWrap = false,
             modifier = Modifier.semantics { contentDescription = spokenTime }
         )
 

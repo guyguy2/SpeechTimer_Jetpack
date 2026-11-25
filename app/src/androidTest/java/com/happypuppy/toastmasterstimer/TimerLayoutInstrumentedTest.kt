@@ -76,7 +76,12 @@ class TimerLayoutInstrumentedTest {
 
         val digitsLayout = digitsLayout("01:15")
         assertEquals(1, digitsLayout.lineCount)
-        assertTrue(!digitsLayout.didOverflowWidth)
+        assertTrue(
+            "Portrait digits overflowed: hasVisualOverflow=${digitsLayout.hasVisualOverflow}, " +
+                "didOverflowWidth=${digitsLayout.didOverflowWidth}, didOverflowHeight=${digitsLayout.didOverflowHeight}, " +
+                "lineRight=${digitsLayout.getLineRight(0)}, size=${digitsLayout.size}",
+            !digitsLayout.hasVisualOverflow && digitsLayout.getLineRight(0) <= digitsLayout.size.width + 1f
+        )
 
         val digitsBounds = rule.onNodeWithText("01:15").fetchSemanticsNode().boundsInRoot
         val startBounds = rule.onNodeWithContentDescription("Start timer").fetchSemanticsNode().boundsInRoot
@@ -113,7 +118,12 @@ class TimerLayoutInstrumentedTest {
 
         val digitsLayout = digitsLayout("01:35")
         assertEquals(1, digitsLayout.lineCount)
-        assertTrue(!digitsLayout.didOverflowWidth)
+        assertTrue(
+            "Landscape digits overflowed: hasVisualOverflow=${digitsLayout.hasVisualOverflow}, " +
+                "didOverflowWidth=${digitsLayout.didOverflowWidth}, didOverflowHeight=${digitsLayout.didOverflowHeight}, " +
+                "lineRight=${digitsLayout.getLineRight(0)}, size=${digitsLayout.size}",
+            !digitsLayout.hasVisualOverflow && digitsLayout.getLineRight(0) <= digitsLayout.size.width + 1f
+        )
 
         val digitsBounds = rule.onNodeWithText("01:35").fetchSemanticsNode().boundsInRoot
         val startBounds = rule.onNodeWithContentDescription("Start timer").fetchSemanticsNode().boundsInRoot
@@ -171,8 +181,12 @@ class TimerLayoutInstrumentedTest {
         val tabletFontSp = tabletLayout.layoutInput.style.fontSize.value
 
         assertEquals(1, tabletLayout.lineCount)
-        assertTrue(!tabletLayout.didOverflowWidth)
-        assertTrue(!tabletLayout.didOverflowHeight)
+        assertTrue(
+            "Tablet digits overflowed: hasVisualOverflow=${tabletLayout.hasVisualOverflow}, " +
+                "didOverflowWidth=${tabletLayout.didOverflowWidth}, didOverflowHeight=${tabletLayout.didOverflowHeight}, " +
+                "lineRight=${tabletLayout.getLineRight(0)}, size=${tabletLayout.size}",
+            !tabletLayout.hasVisualOverflow && tabletLayout.getLineRight(0) <= tabletLayout.size.width + 1f
+        )
         assertTrue(
             "Expected tablet fontSize ($tabletFontSp sp) > phone fontSize ($phoneFontSp sp)",
             tabletFontSp > phoneFontSp
