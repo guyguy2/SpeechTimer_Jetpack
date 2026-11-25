@@ -37,6 +37,11 @@ class FakeSpeakerDao(initial: List<Speaker> = emptyList()) : SpeakerDao {
         return if (error != null) flow { throw error } else speakers
     }
 
+    override suspend fun getAllSpeakersOnce(): List<Speaker> {
+        queryError?.let { throw it }
+        return speakers.value
+    }
+
     override suspend fun insertSpeaker(speaker: Speaker) {
         insertError?.let {
             insertError = null

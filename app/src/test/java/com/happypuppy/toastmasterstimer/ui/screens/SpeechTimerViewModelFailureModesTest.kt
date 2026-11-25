@@ -277,4 +277,121 @@ class SpeechTimerViewModelFailureModesTest {
         assertEquals(2, events.size)
         job.cancel()
     }
+
+    @Test
+    fun deleteSpeakerSuspended_thenDeleteAllSpeakers_thenDeleteSpeakerFails_preservesDataInBulkUndo() = runTest {
+        val ann = speaker(1, "Ann")
+        val bob = speaker(2, "Bob")
+        val backingDao = FakeSpeakerDao(listOf(ann, bob))
+        val deleteGate = CompletableDeferred<Unit>()
+        val suspendingDao = object : SpeakerDao by backingDao {
+            override suspend fun deleteSpeaker(speaker: Speaker) {
+                deleteGate.await()
+                backingDao.deleteSpeaker(speaker)
+            }
+        }
+        val vm = SpeechTimerViewModel(SpeakerRepository(suspendingDao))
+
+        vm.deleteSpeaker(ann)
+        vm.deleteAllSpeakers()
+
+        deleteGate.completeExceptionally(java.io.IOException("disk locked"))
+        advanceUntilIdle()
+
+        assertTrue(backingDao.current.isEmpty())
+        assertTrue(vm.uiState.value.speakers.isEmpty())
+        assertTrue(vm.uiState.value.canUndo)
+        assertNull(vm.uiState.value.error)
+
+        vm.undoDelete()
+        advanceUntilIdle()
+
+        assertEquals(setOf("Ann", "Bob"), backingDao.current.map { it.name }.toSet())
+        assertEquals(setOf("Ann", "Bob"), vm.uiState.value.speakers.map { it.name }.toSet())
+        assertFalse(vm.uiState.value.canUndo)
+        assertNull(vm.uiState.value.error)
+    }
+
+    @Test
+    fun deleteSpeakerSuspended_thenUndoDeleteBeforeDeleteFinishes_doesNotEmitStaleDeletedEvent() = runTest {
+        val ann = speaker(1, "Ann")
+        val backingDao = FakeSpeakerDao(listOf(ann))
+        val deleteGate = CompletableDeferred<Unit>()
+        val suspendingDao = object : SpeakerDao by backingDao {
+            override suspend fun deleteSpeaker(speaker: Speaker) {
+                deleteGate.await()
+                backingDao.deleteSpeaker(speaker)
+            }
+        }
+        val vm = SpeechTimerViewModel(SpeakerRepository(suspendingDao))
+        val events = mutableListOf<SpeakerEvent>()
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) {
+            vm.events.collect { events.add(it) }
+        }
+
+        vm.deleteSpeaker(ann)
+        vm.undoDelete()
+
+        deleteGate.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(listOf("Ann"), vm.uiState.value.speakers.map { it.name })
+        assertFalse(vm.uiState.value.canUndo)
+        assertNull(vm.uiState.value.error)
+        assertTrue(events.isEmpty())
+        job.cancel()
+    }
+
+    @Test
+    fun undoDeleteSuspended_thenDeleteAnotherSpeaker_thenRestoreFails_preservesRestoreFailedError() = runTest {
+        val ann = speaker(1, "Ann")
+        val bob = speaker(2, "Bob")
+        val carl = speaker(3, "Carl")
+        val backingDao = FakeSpeakerDao(listOf(ann, bob, carl))
+        var insertGate: CompletableDeferred<Unit>? = CompletableDeferred()
+        val suspendingDao = object : SpeakerDao by backingDao {
+            override suspend fun insertSpeaker(speaker: Speaker) {
+                insertGate?.await()
+                backingDao.insertSpeaker(speaker)
+            }
+        }
+        val vm = SpeechTimerViewModel(SpeakerRepository(suspendingDao))
+        val events = mutableListOf<SpeakerEvent>()
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) {
+            vm.events.collect { events.add(it) }
+        }
+
+        vm.deleteSpeaker(bob)
+        assertEquals(listOf(SpeakerEvent.Deleted(bob)), events)
+
+        vm.undoDelete()
+        vm.deleteSpeaker(carl)
+
+        insertGate?.completeExceptionally(java.io.IOException("disk locked"))
+        advanceUntilIdle()
+
+        assertEquals(listOf("Ann"), backingDao.current.map { it.name })
+        assertEquals(listOf("Ann"), vm.uiState.value.speakers.map { it.name })
+        assertTrue(vm.uiState.value.canUndo)
+        assertEquals(SpeakerError.RestoreFailed, vm.uiState.value.error)
+        assertEquals(
+            listOf(SpeakerEvent.Deleted(bob), SpeakerEvent.Deleted(carl)),
+            events
+        )
+
+        // Verify both Carl and Bob remain cleanly recoverable via subsequent undo retries.
+        insertGate = null
+        vm.undoDelete()
+        advanceUntilIdle()
+        assertTrue(vm.uiState.value.canUndo)
+        assertEquals(setOf("Ann", "Carl"), vm.uiState.value.speakers.map { it.name }.toSet())
+        assertEquals(SpeakerEvent.Deleted(bob), events.last())
+
+        vm.undoDelete()
+        advanceUntilIdle()
+        assertFalse(vm.uiState.value.canUndo)
+        assertNull(vm.uiState.value.error)
+        assertEquals(setOf("Ann", "Bob", "Carl"), vm.uiState.value.speakers.map { it.name }.toSet())
+        job.cancel()
+    }
 }
