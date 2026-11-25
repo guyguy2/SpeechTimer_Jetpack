@@ -107,7 +107,7 @@ class SpeechTimerViewModelTest {
 
         vm.deleteSpeaker(ann)
 
-        assertEquals("locked", vm.uiState.value.error)
+        assertEquals(SpeakerError.DeleteFailed, vm.uiState.value.error)
         assertEquals(listOf("Ann"), vm.uiState.value.speakers.map { it.name })
         assertTrue(events.isEmpty())
         collectJob.cancel()
@@ -144,7 +144,7 @@ class SpeechTimerViewModelTest {
 
         vm.deleteAllSpeakers()
 
-        assertEquals("disk error", vm.uiState.value.error)
+        assertEquals(SpeakerError.DeleteAllFailed, vm.uiState.value.error)
         assertTrue(events.isEmpty())
         collectJob.cancel()
     }
@@ -155,7 +155,7 @@ class SpeechTimerViewModelTest {
 
         val state = viewModel(dao).uiState.value
 
-        assertEquals("disk full", state.error)
+        assertEquals(SpeakerError.LoadFailed, state.error)
         assertFalse(state.isLoading)
         assertTrue(state.speakers.isEmpty())
     }
@@ -167,7 +167,7 @@ class SpeechTimerViewModelTest {
 
         vm.saveSpeaker(name = "Dan", speechType = "SPEECH", duration = "06:00")
 
-        assertEquals("readonly database", vm.uiState.value.error)
+        assertEquals(SpeakerError.SaveFailed, vm.uiState.value.error)
     }
 
     @Test
@@ -175,7 +175,7 @@ class SpeechTimerViewModelTest {
         val dao = FakeSpeakerDao().apply { insertError = IOException("readonly database") }
         val vm = viewModel(dao)
         vm.saveSpeaker(name = "Dan", speechType = "SPEECH", duration = "06:00")
-        assertEquals("readonly database", vm.uiState.value.error)
+        assertEquals(SpeakerError.SaveFailed, vm.uiState.value.error)
 
         vm.clearError()
 
@@ -187,7 +187,7 @@ class SpeechTimerViewModelTest {
         val dao = FakeSpeakerDao().apply { insertError = IOException("readonly database") }
         val vm = viewModel(dao)
         vm.saveSpeaker(name = "Dan", speechType = "SPEECH", duration = "06:00")
-        assertEquals("readonly database", vm.uiState.value.error)
+        assertEquals(SpeakerError.SaveFailed, vm.uiState.value.error)
 
         vm.saveSpeaker(name = "Eve", speechType = "SPEECH", duration = "06:30")
 
@@ -323,7 +323,7 @@ class SpeechTimerViewModelTest {
 
         vm.updateSpeakerName(original, "Bea")
 
-        assertEquals("disk full", vm.uiState.value.error)
+        assertEquals(SpeakerError.UpdateFailed, vm.uiState.value.error)
         assertEquals("Ann", vm.uiState.value.speakers.single().name)
     }
 }
