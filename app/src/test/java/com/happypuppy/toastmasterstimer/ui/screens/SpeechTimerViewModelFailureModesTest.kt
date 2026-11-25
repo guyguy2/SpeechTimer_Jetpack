@@ -10,6 +10,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -149,5 +150,69 @@ class SpeechTimerViewModelFailureModesTest {
         vm.clearError()
 
         assertNull(vm.uiState.value.error)
+    }
+
+    @Test
+    fun undoDelete_failedSingleRestoreRetainsEntryAndSucceedsOnRetry() = runTest {
+        val ann = speaker(1, "Ann")
+        val dao = FakeSpeakerDao(listOf(ann))
+        val vm = viewModel(dao)
+
+        vm.deleteSpeaker(ann)
+        assertTrue(vm.uiState.value.speakers.isEmpty())
+        assertTrue(vm.uiState.value.canUndo)
+
+        dao.insertError = java.io.IOException("disk locked")
+        vm.undoDelete()
+
+        assertEquals(SpeakerError.RestoreFailed, vm.uiState.value.error)
+        assertTrue(vm.uiState.value.canUndo)
+        assertTrue(vm.uiState.value.speakers.isEmpty())
+
+        vm.undoDelete()
+
+        assertNull(vm.uiState.value.error)
+        assertFalse(vm.uiState.value.canUndo)
+        assertEquals(listOf("Ann"), vm.uiState.value.speakers.map { it.name })
+    }
+
+    @Test
+    fun undoDelete_failedBulkRestoreRetainsBulkEntryAndSucceedsOnRetry() = runTest {
+        val ann = speaker(1, "Ann")
+        val bob = speaker(2, "Bob")
+        val dao = FakeSpeakerDao(listOf(ann, bob))
+        val vm = viewModel(dao)
+
+        vm.deleteAllSpeakers()
+        assertTrue(vm.uiState.value.canUndo)
+
+        dao.insertError = java.io.IOException("disk locked")
+        vm.undoDelete()
+
+        assertEquals(SpeakerError.RestoreFailed, vm.uiState.value.error)
+        assertTrue(vm.uiState.value.canUndo)
+
+        vm.undoDelete()
+
+        assertNull(vm.uiState.value.error)
+        assertFalse(vm.uiState.value.canUndo)
+        assertEquals(setOf("Ann", "Bob"), vm.uiState.value.speakers.map { it.name }.toSet())
+    }
+
+    @Test
+    fun deleteAllSpeakers_whenEmpty_isNoOp() = runTest {
+        val dao = FakeSpeakerDao()
+        val vm = viewModel(dao)
+        val events = mutableListOf<SpeakerEvent>()
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) {
+            vm.events.collect { events.add(it) }
+        }
+
+        vm.deleteAllSpeakers()
+
+        assertFalse(vm.uiState.value.canUndo)
+        assertTrue(events.isEmpty())
+        assertNull(vm.uiState.value.error)
+        job.cancel()
     }
 }

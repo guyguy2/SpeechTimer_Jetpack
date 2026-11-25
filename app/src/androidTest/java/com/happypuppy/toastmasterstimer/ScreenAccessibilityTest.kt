@@ -57,13 +57,13 @@ class ScreenAccessibilityTest {
 
     @Test
     fun main_passesAccessibilityChecks() {
-        waitForText("TABLE TOPICS (1 TO 2 MIN)")
+        waitForText("Table Topics")
         checkAllWindows()
     }
 
     @Test
     fun customSpeech_passesAccessibilityChecks() {
-        waitForText("TABLE TOPICS (1 TO 2 MIN)")
+        waitForText("Table Topics")
         rule.onNodeWithText("Custom").performClick()
         waitForText("Speech will last between 8 and 10 minutes")
         checkAllWindows()
@@ -71,7 +71,7 @@ class ScreenAccessibilityTest {
 
     @Test
     fun savedDataEmpty_passesAccessibilityChecks() {
-        waitForText("TABLE TOPICS (1 TO 2 MIN)")
+        waitForText("Table Topics")
         rule.onNodeWithText("Saved Data").performClick()
         waitForText("No Saved Speech Data")
         checkAllWindows()
@@ -80,7 +80,7 @@ class ScreenAccessibilityTest {
     @Test
     fun savedDataWithARow_passesAccessibilityChecks() {
         runBlocking { repository.insertSpeaker(Speaker(name = "Ann", speechType = "SPEECH", duration = "05:10")) }
-        waitForText("TABLE TOPICS (1 TO 2 MIN)")
+        waitForText("Table Topics")
         rule.onNodeWithText("Saved Data").performClick()
         waitForText("Ann")
         checkAllWindows()
@@ -88,7 +88,7 @@ class ScreenAccessibilityTest {
 
     @Test
     fun settings_passesAccessibilityChecks() {
-        waitForText("TABLE TOPICS (1 TO 2 MIN)")
+        waitForText("Table Topics")
         rule.onNodeWithContentDescription("Settings").performClick()
         waitForText("Theme")
         checkAllWindows()
@@ -96,8 +96,8 @@ class ScreenAccessibilityTest {
 
     @Test
     fun saveDialog_passesAccessibilityChecks() {
-        waitForText("TABLE TOPICS (1 TO 2 MIN)")
-        rule.onNodeWithText("TABLE TOPICS (1 TO 2 MIN)").performClick()
+        waitForText("Table Topics")
+        rule.onNodeWithText("Table Topics").performClick()
         waitForText("00:00")
         rule.onNodeWithContentDescription("Start timer").performClick()
         waitForText("00:01")
@@ -110,8 +110,8 @@ class ScreenAccessibilityTest {
 
     @Test
     fun backConfirmDialog_passesAccessibilityChecks() {
-        waitForText("TABLE TOPICS (1 TO 2 MIN)")
-        rule.onNodeWithText("TABLE TOPICS (1 TO 2 MIN)").performClick()
+        waitForText("Table Topics")
+        rule.onNodeWithText("Table Topics").performClick()
         waitForText("00:00")
         rule.onNodeWithContentDescription("Start timer").performClick()
         waitForText("00:01")

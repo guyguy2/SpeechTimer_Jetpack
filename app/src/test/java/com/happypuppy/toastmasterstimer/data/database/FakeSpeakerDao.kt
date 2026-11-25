@@ -46,6 +46,21 @@ class FakeSpeakerDao(initial: List<Speaker> = emptyList()) : SpeakerDao {
         speakers.update { list -> list.filterNot { it.id == stored.id } + stored }
     }
 
+    override suspend fun insertSpeakers(speakers: List<Speaker>) {
+        insertError?.let {
+            insertError = null
+            throw it
+        }
+        this.speakers.update { list ->
+            var updated = list
+            for (speaker in speakers) {
+                val stored = if (speaker.id == 0) speaker.copy(id = nextId++) else speaker
+                updated = updated.filterNot { it.id == stored.id } + stored
+            }
+            updated
+        }
+    }
+
     override suspend fun updateSpeaker(speaker: Speaker) {
         updateError?.let {
             updateError = null

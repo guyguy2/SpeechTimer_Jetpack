@@ -80,6 +80,14 @@ class SpeechTypeTest {
     }
 
     @Test
+    fun everyPreset_hasADistinctNonZeroCardTitleRes() {
+        val presetCardTitles = SpeechType.presets.map { it.cardTitleRes }
+        assertTrue(presetCardTitles.all { it != 0 })
+        assertEquals(presetCardTitles.size, presetCardTitles.toSet().size)
+        assertTrue(SpeechType.CUSTOM.cardTitleRes != 0)
+    }
+
+    @Test
     fun fromId_roundTripsEveryTypeAndRejectsUnknownIds() {
         SpeechType.entries.forEach { assertEquals(it, SpeechType.fromId(it.id)) }
         assertNull(SpeechType.fromId(""))

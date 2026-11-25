@@ -61,26 +61,26 @@ class TimerFlowsTest {
         }
     }
 
-    private fun awaitMainScreen() = rule.waitForText("TABLE TOPICS (1 TO 2 MIN)")
+    private fun awaitMainScreen() = rule.waitForText("Table Topics")
 
     private fun openTableTopicsTimer() {
         awaitMainScreen()
-        rule.onNodeWithText("TABLE TOPICS (1 TO 2 MIN)").performClick()
+        rule.onNodeWithText("Table Topics").performClick()
         rule.waitForText("00:00")
     }
 
     @Test
     fun mainScreen_listsAllFourPresets() {
         awaitMainScreen()
-        rule.onNodeWithText("EVALUATION (2 TO 3 MIN)").assertExists()
-        rule.onNodeWithText("ICE BREAKER (4 TO 6 MIN)").assertExists()
-        rule.onNodeWithText("SPEECH (5 TO 7 MIN)").assertExists()
+        rule.onNodeWithText("Evaluation").assertExists()
+        rule.onNodeWithText("Ice Breaker").assertExists()
+        rule.onNodeWithText("Prepared Speech").assertExists()
     }
 
     @Test
     fun presetTap_opensTimerWithThatTitleAtZero() {
         awaitMainScreen()
-        rule.onNodeWithText("ICE BREAKER (4 TO 6 MIN)").performClick()
+        rule.onNodeWithText("Ice Breaker").performClick()
 
         rule.waitForText("00:00")
         rule.onNodeWithText("ICE BREAKER (4 TO 6 MIN)").assertExists()
@@ -320,7 +320,7 @@ class TimerFlowsTest {
 
         rule.onNodeWithText("Add New Speech").performClick()
 
-        rule.waitForText("TABLE TOPICS (1 TO 2 MIN)")
+        rule.waitForText("Table Topics")
     }
 
     @Test
