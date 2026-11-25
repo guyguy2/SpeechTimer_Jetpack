@@ -1,0 +1,82 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 3,
+    "identityHash": "cb7cf8b217583c530b6efd382afaf6a4",
+    "entities": [
+      {
+        "tableName": "speakers",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `speech_type` TEXT NOT NULL, `duration` TEXT NOT NULL, `created_at` INTEGER NOT NULL, `speech_type_id` TEXT NOT NULL DEFAULT 'unknown', `min_seconds` INTEGER, `max_seconds` INTEGER, `elapsed_seconds` INTEGER, `phase_reached` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "speechType",
+            "columnName": "speech_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "duration",
+            "columnName": "duration",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "speechTypeId",
+            "columnName": "speech_type_id",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'unknown'"
+          },
+          {
+            "fieldPath": "minSeconds",
+            "columnName": "min_seconds",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "maxSeconds",
+            "columnName": "max_seconds",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "elapsedSeconds",
+            "columnName": "elapsed_seconds",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "phaseReached",
+            "columnName": "phase_reached",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'cb7cf8b217583c530b6efd382afaf6a4')"
+    ]
+  }
+}

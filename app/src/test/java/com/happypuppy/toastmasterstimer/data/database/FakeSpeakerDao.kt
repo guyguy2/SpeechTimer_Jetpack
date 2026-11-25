@@ -21,6 +21,9 @@ class FakeSpeakerDao(initial: List<Speaker> = emptyList()) : SpeakerDao {
     /** When set, the next [insertSpeaker] call throws this error once. */
     var insertError: Throwable? = null
 
+    /** When set, the next [updateSpeaker] call throws this error once. */
+    var updateError: Throwable? = null
+
     /** When set, the next [deleteSpeaker] call throws this error once. */
     var deleteError: Throwable? = null
 
@@ -41,6 +44,14 @@ class FakeSpeakerDao(initial: List<Speaker> = emptyList()) : SpeakerDao {
         }
         val stored = if (speaker.id == 0) speaker.copy(id = nextId++) else speaker
         speakers.update { list -> list.filterNot { it.id == stored.id } + stored }
+    }
+
+    override suspend fun updateSpeaker(speaker: Speaker) {
+        updateError?.let {
+            updateError = null
+            throw it
+        }
+        speakers.update { list -> list.map { if (it.id == speaker.id) speaker else it } }
     }
 
     override suspend fun deleteSpeaker(speaker: Speaker) {
