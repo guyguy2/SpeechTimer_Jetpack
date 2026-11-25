@@ -20,6 +20,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.unit.dp
 import com.happypuppy.toastmasterstimer.R
 import kotlin.math.roundToInt
@@ -58,7 +63,17 @@ fun TimerProgressBar(
     val yellowPosition = (yellowThreshold.toFloat() / safeMax).coerceIn(0f, 1f)
     val redPosition = (redThreshold.toFloat() / safeMax).coerceIn(0f, 1f)
 
-    Column(modifier = modifier) {
+    val progressDescription = stringResource(R.string.timer_progress_description)
+    Column(
+        modifier = modifier.clearAndSetSemantics {
+            // One node for the whole bar; the dots and the start marker are decoration.
+            contentDescription = progressDescription
+            progressBarRangeInfo = ProgressBarRangeInfo(
+                current = currentSeconds.toFloat().coerceIn(0f, safeMax),
+                range = 0f..safeMax
+            )
+        }
+    ) {
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
@@ -125,7 +140,7 @@ fun TimerProgressBar(
                         Icon(
                             painter = painterResource(R.drawable.start_24px),
                             modifier = Modifier.size(12.dp),
-                            contentDescription = "start",
+                            contentDescription = null,
                             tint = Color.White
                         )
 

@@ -34,6 +34,8 @@ Use the `android` CLI as needed for Android workflows (`android --help` / `andro
   - `TimerViewModel` mirrors `accumulatedMs`, `startedAtMs`, the phase and the thresholds into a `SavedStateHandle` (a required constructor parameter, injected by Koin) and rebuilds from it, so a timer survives process death (not a reboot or swipe-away). A restored state sets `isRestored`, which `TimerScreen` shows as "Timer restored" until the user acts. Restart takes a `snapshot()` and offers Undo (`undoReset`) through a snackbar.
   - `alert/AlertPlayer.kt` is the interface plus `dispatchPhaseAlert` (which cue for which phase and setting); `AndroidAlertPlayer` plays vibration with `VibrationAttributes` USAGE_ALARM (`AudioAttributes` below API 33) and sound with alarm `AudioAttributes` plus transient audio focus. JVM tests use `FakeAlertPlayer`.
   - `TimerScreen` also manages `LocalView.current.keepScreenOn` while running, draws the animated phase color before `innerPadding` for edge-to-edge coverage, hosts its snackbar in `Scaffold(snackbarHost = ...)` (a host placed under the content overlay cannot be tapped), asks before leaving with time on the clock, and stops the active sound on reset/dispose. Phase and hint colors live in `ui/screens/PhaseColors.kt` and are covered by a WCAG contrast test.
+  - `ui/screens/TimerFace.kt` is the stateless phase-coloured content of the timer (plain values in, callbacks out, no ViewModel, Koin or navigation), so tests can show it at any phase. `ui/screens/PhaseCue.kt` holds the pure mapping: `phaseCue(phase)` gives the label and spoken-phase string resources plus a `PhaseIcon` key (hourglass, check, warning, stop: distinct shapes), and `spokenDuration` turns seconds into "1 minute 4 seconds" through injected plural formatters.
+  - **Phase semantics contract** (pinned by `TimerFaceSemanticsTest`): the phase is never color only. A visible chip (icon plus label, for example "Green: minimum reached") is its own semantics node and is one of exactly two polite live regions, so a screen reader hears phase changes and nothing that ticks. The other is the semantics-only node that replaces the chip in pure-color mode (the hide-controls eye toggle): nothing is drawn, but a full-size node with the same description and live region stays in the tree. The time digits keep their text (`01:04`) but expose one spoken description ("1 minute 4 seconds, green phase") and never have a live region. A paused timer shows a steady "Paused" label and dimmed digits (`PausedDigitsAlpha`), no blinking; the Paused row is always laid out (invisible and without semantics unless paused) so the buttons do not move. The progress bar is one node with `progressBarRangeInfo` and the description "Time progress".
 - **Custom speech durations**: `util/CustomSpeechRange.kt` clamps start/end so `1 <= start <= 59` and `start < end <= 60`, keeping thresholds distinct. Use its helpers rather than clamping in UI code.
 - **Persistence**:
   - Room: a single `speakers` table (saved speech results). Entity, DAO, `AppDatabase` and `SpeakerRepository` all live in `data/database/Database.kt`, but the **package is `data.database.repository`**, not `data.database`. `DateConverters` lives separately in `data/repository/DateConverters.kt` (`data.repository` package).
@@ -52,11 +54,11 @@ Manual check of vibration attributes: start a 1-2 min timer, press Home, wait pa
 
 ## Testing
 
-JVM unit tests (`app/src/test`, `./gradlew testDebugUnitTest`, 107 tests): `TimerContractTest`, `TimerThresholdsTest`, `CustomSpeechRangeTest`, `FormatTimeTest`, `TimerViewModelTest`, `TimerViewModelEdgeCasesTest`, `TimerViewModelRestoreTest`, `PhaseAlertDispatchTest`, `PhaseTextContrastTest`, `SpeechTimerViewModelTest`, `SpeechTimerViewModelFailureModesTest`, `SortSpeakersTest`, `AppThemeTest`, `DateConvertersTest`. Helpers: `MainDispatcherRule`, `FakeSpeakerDao`, `FakeAlertPlayer`.
+JVM unit tests (`app/src/test`, `./gradlew testDebugUnitTest`, 119 tests): `TimerContractTest` 10, `TimerThresholdsTest` 5, `CustomSpeechRangeTest` 5, `FormatTimeTest` 7, `TimerViewModelTest` 11, `TimerViewModelEdgeCasesTest` 17, `TimerViewModelRestoreTest` 14, `PhaseAlertDispatchTest` 6, `PhaseCueTest` 6, `PhaseTextContrastTest` 8, `SpeechTimerViewModelTest` 12, `SpeechTimerViewModelFailureModesTest` 8, `SortSpeakersTest` 5, `AppThemeTest` 2, `DateConvertersTest` 3. Helpers: `MainDispatcherRule`, `FakeSpeakerDao`, `FakeAlertPlayer`. `PhaseTextContrastTest` checks every text color drawn on the phase backgrounds (4.5:1 small text, 3:1 for the dimmed paused digits).
 
 Every `TimerViewModel` test must create its ViewModels through the `newVm` helper and wrap the body in `runTimerTest` (see `TimerViewModelEdgeCasesTest`). `start()` leaves an unbounded tick loop; if an assertion fails before `reset()`, `runTest` drains virtual time forever and the test hangs instead of failing. A `runTest(timeout = ...)` does not help (verified: it still hung); the helper resets every ViewModel in a `finally` block. Pre-filled `SavedStateHandle` plus the fake clock covers restore logic; a real kill is the manual `am kill` step above.
 
-Instrumented tests (`app/src/androidTest`, 18 tests: `TimerFlowsTest` 15, `DataStoreManagerTest` 3) drive the real app with the real Koin graph and Room DB and assert on visible text and content descriptions only. They wipe saved speeches and write settings: emulator only, never a physical device. Do not run a bare `./gradlew connectedDebugAndroidTest`: it installs on every attached device. Use the explicit form on one emulator:
+Instrumented tests (`app/src/androidTest`, 63 tests) run on an emulator and are never run in CI. `TimerFlowsTest` (17) and `DataStoreManagerTest` (3) drive the real app with the real Koin graph and Room DB and assert on visible text and content descriptions only. The rest are Compose and accessibility tests: `TimerFaceSemanticsTest` (10, `TimerFace` at chosen phases: live regions, spoken digits, Paused, bounds, progress bar), `CustomSpeechSemanticsTest` (3), `SavedDataSemanticsTest` (3), `InputDialogTest` (1, autofocus), `DialogRotationTest` (4, dialogs and the typed name survive `recreate()`), `TimerTitleFontScaleTest` (6) and the accessibility checks below (`TimerAccessibilityTest` 9, `ScreenAccessibilityTest` 7). They wipe saved speeches and write settings: emulator only, never a physical device. Do not run a bare `./gradlew connectedDebugAndroidTest`: it installs on every attached device. Use the explicit form on one emulator:
 
 ```bash
 ./gradlew assembleDebug assembleDebugAndroidTest
@@ -66,6 +68,16 @@ adb -s emulator-NNNN shell am instrument -w -r com.happypuppy.toastmasterstimer.
 ```
 
 `emulator-NNNN` is the serial of your own emulator: replace NNNN with its port. Parallel agents or sessions use distinct ports (5554 and 5556 in the Tech Lead's runs) and must only touch their own. When two agents or sessions share the AVD, start every instance with `-read-only` (`emulator -avd Pixel_10 -port NNNN -read-only -no-window -no-audio -no-snapshot-save`); without it the second start fails with "Another emulator instance is running". A read-only AVD starts clean each time, so the app has to be installed again. Stylus handwriting (the Gboard overlay) can swallow typed text; `adb shell settings put secure stylus_handwriting_enabled 0` turns it off for the session.
+
+### Accessibility-check tests
+
+`androidx.compose.ui:ui-test-junit4-accessibility` (Compose BOM managed, `androidTestImplementation`) adds `rule.enableAccessibilityChecks()`. The Accessibility Test Framework then runs on every test action and on an explicit `onRoot().tryPerformAccessibilityChecks()` (dialogs are separate windows: use `onAllNodes(isRoot())`). Errors throw `AccessibilityViewCheckException`. Covered, one test per screen or state: Main, Custom speech, Saved Data (empty and with a row), Settings, the save dialog, the back-confirm dialog (`ScreenAccessibilityTest`), and the timer idle, running, paused, each phase, paused in red and pure-color mode (`TimerAccessibilityTest`, which holds two classes). There is no allow-list: all of them pass with no findings. If a new finding appears, fix it or report it; do not suppress it without a narrow, commented `setSuppressingResultMatcher` entry and a note here. ATF text-contrast checks need screenshots and are not what covers contrast here: the JVM WCAG tests are. Run one class on the emulator with `adb -s emulator-NNNN shell am instrument -w -r -e class com.happypuppy.toastmasterstimer.ScreenAccessibilityTest com.happypuppy.toastmasterstimer.test/androidx.test.runner.AndroidJUnitRunner`.
+
+`TimerTitleFontScaleTest` changes the system font scale (`settings put system font_scale`) and resets it to 1.0 in `@After`. After a crashed or killed run, recover with `adb -s emulator-NNNN shell settings put system font_scale 1.0`.
+
+### Strings
+
+New user-facing strings from Wave 2 (phase labels, spoken phases, plurals, button names, stepper names, per-row labels) are in `res/values/strings.xml` and read with `stringResource`. Older literals are still inline; Wave 5 extracts the remaining strings (and the content descriptions still hardcoded elsewhere).
 
 ## Database migrations
 
@@ -80,6 +92,28 @@ adb -s emulator-NNNN shell am instrument -w -r com.happypuppy.toastmasterstimer.
 - Local signing reads `keystore.properties` (git-ignored) or `ANDROID_KEYSTORE_*` env vars; without them the release build is unsigned. Never commit keystores or `keystore.properties`.
 - `app/src/main/play/release-notes/` is generated by CI from commit subjects (`wip`, `ci`, `chore`, `docs`, `build`, and `merge` commits are dropped; conventional prefixes and trailing `(Wave N)` are stripped; 500 char cap) and is git-ignored. Write commit subjects accordingly.
 - Dependabot is configured in `.github/dependabot.yml`; GitHub Actions are pinned by commit SHA.
+
+## Release and CI/CD (linked repos)
+
+This repo does not hold the release tooling. The shared CI/CD hub is a separate local git repo:
+
+- CI/CD hub: `/Users/guy/dev/android/cicd` (GCP project `happypuppy-play-cicd`, service accounts `play-ci-testing` and `play-ci-production`, keyless WIF auth). Read before any release work:
+  - `cicd/app-state.md`: living source of truth (per-app Play state, package names, keystore locations and aliases, what is live on which track).
+  - `cicd/workflows/existing-app-onboard-and-release.md`: the repeatable release checklist.
+  - `cicd/14-local-and-self-hosted-pipelines.md`: running the CI, release and promote workflows locally.
+  - `cicd/release-log.md`: history and lessons. `cicd/AGENTS.md`: workspace rule, `versionName` is always clean semver, never a commit hash.
+- Sibling app on the same pipeline: SimpleDayCounter (Simple Day Counter, package com.happypuppy.daycounter) at /Users/guy/dev/android/SimpleDayCounter; same hub, same release workflows, its AGENTS.md points back here and to the hub
+- This repo's own workflows are `.github/workflows/ci.yml`, `release-internal.yml` and `promote.yml` (SHA-pinned). Local mirrors live in the hub and take this repo via `--repo-dir`; run them from the hub directory:
+
+```bash
+cd /Users/guy/dev/android/cicd
+scripts/local-ci.sh --repo-dir /Users/guy/dev/android/SpeechTimer_Jetpack
+scripts/local-release-internal.sh --repo-dir /Users/guy/dev/android/SpeechTimer_Jetpack --keystore <path from app-state.md> --alias <alias from app-state.md> --version-code auto --dry-run
+scripts/local-promote.sh --engine gplay --package com.happypuppy.toastmasterstimer --to production --action update-rollout --fraction 0.5
+```
+
+- Releasing from either app repo works the same way: the hub scripts take the app repo and package as arguments, so a release session can start in this repo or in the sibling and still find the hub and the other app through the paths above.
+- Rules: `--dry-run` first. Uploading to Play, promoting, or changing a rollout is outward-facing: only with the owner's explicit yes. Release from a clean, merged `main` unless the owner says otherwise (the local script refuses a dirty tree). Never commit keystores, `keystore.properties` or service-account files; the hub documents where they live, with locations only. Commit subjects feed the Play release notes (see Build, versioning and release above).
 
 ## Known gaps
 

@@ -26,10 +26,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.happypuppy.toastmasterstimer.R
 import com.happypuppy.toastmasterstimer.navigation.Screen
 import com.happypuppy.toastmasterstimer.ui.components.MinutePicker
 import com.happypuppy.toastmasterstimer.ui.components.SpeechTimerBottomBar
@@ -90,7 +92,9 @@ fun SpeechTimePicker(navController: NavHostController) {
                                 startMinutes = clampedStart
                                 endMinutes = clampedEnd
                             },
-                            range = CustomSpeechRange.startRange
+                            range = CustomSpeechRange.startRange,
+                            increaseDescription = stringResource(R.string.stepper_increase_minimum),
+                            decreaseDescription = stringResource(R.string.stepper_decrease_minimum)
                         )
 
                         Text(
@@ -110,7 +114,9 @@ fun SpeechTimePicker(navController: NavHostController) {
                                 startMinutes = clampedStart
                                 endMinutes = clampedEnd
                             },
-                            range = CustomSpeechRange.endRange(startMinutes)
+                            range = CustomSpeechRange.endRange(startMinutes),
+                            increaseDescription = stringResource(R.string.stepper_increase_maximum),
+                            decreaseDescription = stringResource(R.string.stepper_decrease_maximum)
                         )
                     }
 

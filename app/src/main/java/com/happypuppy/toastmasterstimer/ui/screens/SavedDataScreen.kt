@@ -45,11 +45,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -93,14 +95,14 @@ fun SavedDataScreen(
     val error = uiState.error
     val context = LocalContext.current
 
-    var showSortOptions by remember { mutableStateOf(false) }
+    var showSortOptions by rememberSaveable { mutableStateOf(false) }
     var currentSortOption by remember { mutableStateOf(SortOption.DATE_NEWEST) }
 
     val sortedSpeakers = remember(speakers, currentSortOption) {
         sortSpeakers(speakers, currentSortOption)
     }
 
-    var showConfirmDialog by remember { mutableStateOf(false) }
+    var showConfirmDialog by rememberSaveable { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -383,7 +385,7 @@ fun SpeakerCard(
                 IconButton(onClick = onShareClick) {
                     Icon(
                         Icons.Default.Share,
-                        contentDescription = "Share",
+                        contentDescription = stringResource(R.string.saved_row_share, speaker.name, speaker.speechType),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -391,7 +393,7 @@ fun SpeakerCard(
                 IconButton(onClick = onDeleteClick) {
                     Icon(
                         Icons.Default.Delete,
-                        contentDescription = "Delete",
+                        contentDescription = stringResource(R.string.saved_row_delete, speaker.name, speaker.speechType),
                         tint = MaterialTheme.colorScheme.error
                     )
                 }
