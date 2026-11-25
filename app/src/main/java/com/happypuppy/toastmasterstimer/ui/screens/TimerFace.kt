@@ -146,7 +146,7 @@ internal fun TimerFace(
                     ) {
                         if (isRestored) {
                             Text(
-                                text = "Timer restored",
+                                text = stringResource(R.string.timer_restored),
                                 style = MaterialTheme.typography.labelLarge,
                                 color = timerTextColor,
                                 modifier = Modifier.padding(bottom = 8.dp)
@@ -289,7 +289,7 @@ internal fun TimerFace(
                     }
 
                     Text(
-                        text = FOREGROUND_HINT,
+                        text = stringResource(R.string.timer_foreground_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = timerTextColor.copy(alpha = HintTextAlpha),
                         modifier = Modifier.padding(top = 8.dp)

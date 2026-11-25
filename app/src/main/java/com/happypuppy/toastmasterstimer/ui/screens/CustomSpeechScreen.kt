@@ -26,6 +26,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -48,7 +49,7 @@ fun SpeechTimePicker(navController: NavHostController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Set Speech Duration") }
+                title = { Text(stringResource(R.string.custom_speech_title)) }
             )
         },
         bottomBar = {
@@ -84,7 +85,7 @@ fun SpeechTimePicker(navController: NavHostController) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         MinutePicker(
-                            label = "From",
+                            label = stringResource(R.string.custom_speech_from),
                             value = startMinutes,
                             onValueChange = { newValue ->
                                 val (clampedStart, clampedEnd) = CustomSpeechRange.updateStart(
@@ -100,13 +101,13 @@ fun SpeechTimePicker(navController: NavHostController) {
                         )
 
                         Text(
-                            text = "to",
+                            text = stringResource(R.string.custom_speech_to_connector),
                             fontSize = 18.sp,
                             modifier = Modifier.padding(horizontal = 8.dp)
                         )
 
                         MinutePicker(
-                            label = "To",
+                            label = stringResource(R.string.custom_speech_to),
                             value = endMinutes,
                             onValueChange = { newValue ->
                                 val (clampedStart, clampedEnd) = CustomSpeechRange.updateEnd(
@@ -123,7 +124,12 @@ fun SpeechTimePicker(navController: NavHostController) {
                     }
 
                     Text(
-                        text = "Speech will last between $startMinutes and $endMinutes minutes",
+                        text = pluralStringResource(
+                            R.plurals.custom_speech_summary,
+                            endMinutes,
+                            startMinutes,
+                            endMinutes
+                        ),
                         fontSize = 16.sp,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(vertical = 16.dp)
@@ -146,7 +152,7 @@ fun SpeechTimePicker(navController: NavHostController) {
                     )
                 ) {
                     Text(
-                        text = "Start Timer",
+                        text = stringResource(R.string.custom_speech_start_timer),
                         fontSize = 18.sp
                     )
                 }

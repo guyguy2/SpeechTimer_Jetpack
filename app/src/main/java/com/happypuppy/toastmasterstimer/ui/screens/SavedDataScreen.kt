@@ -3,6 +3,7 @@ package com.happypuppy.toastmasterstimer.ui.screens
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -66,20 +67,21 @@ import com.happypuppy.toastmasterstimer.data.preferences.DataStoreManager
 import com.happypuppy.toastmasterstimer.navigation.Screen
 import com.happypuppy.toastmasterstimer.ui.components.InputDialog
 import com.happypuppy.toastmasterstimer.ui.components.SpeechTimerBottomBar
+import com.happypuppy.toastmasterstimer.ui.components.speakerSpeechTypeDisplayName
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
-import java.text.SimpleDateFormat
+import java.text.DateFormat
 import java.util.Locale
 
-enum class SortOption(val displayName: String) {
-    DATE_NEWEST("Date (Newest first)"),
-    DATE_OLDEST("Date (Oldest first)"),
-    NAME_ASC("Name (A-Z)"),
-    NAME_DESC("Name (Z-A)"),
-    TYPE_ASC("Speech Type (A-Z)"),
-    TYPE_DESC("Speech Type (Z-A)");
+enum class SortOption(@StringRes val labelRes: Int) {
+    DATE_NEWEST(R.string.saved_sort_date_newest),
+    DATE_OLDEST(R.string.saved_sort_date_oldest),
+    NAME_ASC(R.string.saved_sort_name_asc),
+    NAME_DESC(R.string.saved_sort_name_desc),
+    TYPE_ASC(R.string.saved_sort_type_asc),
+    TYPE_DESC(R.string.saved_sort_type_desc);
 
     companion object {
         fun fromName(raw: String?): SortOption = entries.firstOrNull { it.name == raw } ?: DATE_NEWEST
@@ -153,7 +155,9 @@ fun SavedDataScreen(
     // Surface transient errors without hiding existing saved speeches
     LaunchedEffect(error) {
         if (error != null && sortedSpeakers.isNotEmpty()) {
-            snackbarHostState.showSnackbar("Error: $error")
+            snackbarHostState.showSnackbar(
+                resources.getString(R.string.saved_error_prefix, error.message.asString(context))
+            )
             viewModel.clearError()
         }
     }
@@ -162,12 +166,12 @@ fun SavedDataScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Saved Speech Data") },
+                title = { Text(stringResource(R.string.saved_title)) },
                 actions = {
                     IconButton(onClick = { showSortOptions = true }) {
                         Icon(
                             painter = painterResource(R.drawable.sort_24px),
-                            contentDescription = "Sort Options"
+                            contentDescription = stringResource(R.string.saved_sort_options_cd)
                         )
                     }
 
@@ -177,8 +181,8 @@ fun SavedDataScreen(
                                 val launched = shareSpeakerData(context, sortedSpeakers)
                                 scope.launch {
                                     snackbarHostState.showSnackbar(
-                                        if (launched) "Sharing all speech data"
-                                        else "No app available to share speech data"
+                                        if (launched) resources.getString(R.string.saved_sharing_all)
+                                        else resources.getString(R.string.saved_share_no_app)
                                     )
                                 }
                             }
@@ -187,7 +191,7 @@ fun SavedDataScreen(
                     ) {
                         Icon(
                             Icons.Filled.Share,
-                            contentDescription = "Share All Data"
+                            contentDescription = stringResource(R.string.saved_share_all_cd)
                         )
                     }
 
@@ -197,7 +201,7 @@ fun SavedDataScreen(
                     ) {
                         Icon(
                             Icons.Filled.Delete,
-                            contentDescription = "Clear All Data"
+                            contentDescription = stringResource(R.string.saved_clear_all_cd)
                         )
                     }
                 }
@@ -228,12 +232,12 @@ fun SavedDataScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "Error: $error",
+                        text = stringResource(R.string.saved_error_prefix, error.message.asString()),
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.error
                     )
                     OutlinedButton(onClick = { viewModel.clearError() }) {
-                        Text("Dismiss")
+                        Text(stringResource(R.string.common_dismiss))
                     }
                 }
             } else if (sortedSpeakers.isEmpty()) {
@@ -256,8 +260,8 @@ fun SavedDataScreen(
                         val launched = shareSingleSpeaker(context, speaker)
                         scope.launch {
                             snackbarHostState.showSnackbar(
-                                if (launched) "Sharing ${speaker.name}'s speech data"
-                                else "No app available to share speech data"
+                                if (launched) resources.getString(R.string.saved_sharing_single, speaker.name)
+                                else resources.getString(R.string.saved_share_no_app)
                             )
                         }
                     },
@@ -283,8 +287,8 @@ fun SavedDataScreen(
             if (showConfirmDialog) {
                 AlertDialog(
                     onDismissRequest = { showConfirmDialog = false },
-                    title = { Text("Clear All Data") },
-                    text = { Text("Are you sure you want to delete all saved speech data? This action cannot be undone.") },
+                    title = { Text(stringResource(R.string.saved_clear_all_title)) },
+                    text = { Text(stringResource(R.string.saved_clear_all_message)) },
                     confirmButton = {
                         Button(
                             onClick = {
@@ -292,14 +296,14 @@ fun SavedDataScreen(
                                 showConfirmDialog = false
                             }
                         ) {
-                            Text("Delete All")
+                            Text(stringResource(R.string.saved_clear_all_confirm))
                         }
                     },
                     dismissButton = {
                         OutlinedButton(
                             onClick = { showConfirmDialog = false }
                         ) {
-                            Text("Cancel")
+                            Text(stringResource(R.string.common_cancel))
                         }
                     }
                 )
@@ -308,7 +312,7 @@ fun SavedDataScreen(
             if (showSortOptions) {
                 AlertDialog(
                     onDismissRequest = { showSortOptions = false },
-                    title = { Text("Sort By") },
+                    title = { Text(stringResource(R.string.saved_sort_dialog_title)) },
                     text = {
                         Column {
                             SortOption.entries.forEach { option ->
@@ -332,7 +336,7 @@ fun SavedDataScreen(
                                         }
                                     )
                                     Text(
-                                        text = option.displayName,
+                                        text = stringResource(option.labelRes),
                                         modifier = Modifier.padding(start = 8.dp)
                                     )
                                 }
@@ -341,7 +345,7 @@ fun SavedDataScreen(
                     },
                     confirmButton = {
                         TextButton(onClick = { showSortOptions = false }) {
-                            Text("Cancel")
+                            Text(stringResource(R.string.common_cancel))
                         }
                     },
                     dismissButton = {}
@@ -383,12 +387,15 @@ fun SpeakerCard(
     onDeleteClick: () -> Unit
 ) {
     val locale = LocalLocale.current.platformLocale
-    val dateFormat = remember(locale) { SimpleDateFormat("MMM dd, yyyy HH:mm", locale) }
+    val dateFormat = remember(locale) {
+        DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, locale)
+    }
     val formattedDate = remember(speaker.createdAt, dateFormat) { dateFormat.format(speaker.createdAt) }
     val targetRange = remember(speaker.minSeconds, speaker.maxSeconds) {
         formatTargetRangeMinutes(speaker.minSeconds, speaker.maxSeconds)
     }
     val phase = remember(speaker.phaseReached) { parseTimerPhase(speaker.phaseReached) }
+    val displaySpeechType = speakerSpeechTypeDisplayName(speaker)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -419,7 +426,7 @@ fun SpeakerCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = speaker.speechType,
+                text = displaySpeechType,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -459,7 +466,7 @@ fun SpeakerCard(
                 IconButton(onClick = onEditClick) {
                     Icon(
                         Icons.Default.Edit,
-                        contentDescription = stringResource(R.string.saved_row_edit, speaker.name, speaker.speechType),
+                        contentDescription = stringResource(R.string.saved_row_edit, speaker.name, displaySpeechType),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -467,7 +474,7 @@ fun SpeakerCard(
                 IconButton(onClick = onShareClick) {
                     Icon(
                         Icons.Default.Share,
-                        contentDescription = stringResource(R.string.saved_row_share, speaker.name, speaker.speechType),
+                        contentDescription = stringResource(R.string.saved_row_share, speaker.name, displaySpeechType),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -475,7 +482,7 @@ fun SpeakerCard(
                 IconButton(onClick = onDeleteClick) {
                     Icon(
                         Icons.Default.Delete,
-                        contentDescription = stringResource(R.string.saved_row_delete, speaker.name, speaker.speechType),
+                        contentDescription = stringResource(R.string.saved_row_delete, speaker.name, displaySpeechType),
                         tint = MaterialTheme.colorScheme.error
                     )
                 }
@@ -503,7 +510,7 @@ fun EmptyStateContent(onAddSpeech: () -> Unit) {
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "No Saved Speech Data",
+            text = stringResource(R.string.saved_empty_title),
             style = MaterialTheme.typography.headlineSmall,
             textAlign = TextAlign.Center
         )
@@ -511,7 +518,7 @@ fun EmptyStateContent(onAddSpeech: () -> Unit) {
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Start timing a speech to save data",
+            text = stringResource(R.string.saved_empty_subtitle),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -529,7 +536,7 @@ fun EmptyStateContent(onAddSpeech: () -> Unit) {
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Add New Speech")
+            Text(stringResource(R.string.saved_empty_add_cta))
         }
     }
 }
@@ -548,14 +555,14 @@ private fun launchShareChooser(context: Context, text: String, chooserTitle: Str
 }
 
 fun shareSingleSpeaker(context: Context, speaker: Speaker): Boolean {
-    val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
+    val dateFormat = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, Locale.getDefault())
     val labels = SpeakerShareLabels.fromResources(context.resources)
     val shareText = formatSingleSpeakerShareText(speaker, dateFormat.format(speaker.createdAt), labels)
     return launchShareChooser(context, shareText, context.getString(R.string.share_chooser_single))
 }
 
 fun shareSpeakerData(context: Context, speakers: List<Speaker>): Boolean {
-    val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
+    val dateFormat = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, Locale.getDefault())
     val labels = SpeakerShareLabels.fromResources(context.resources)
     val shareText = formatAllSpeakersShareText(speakers, dateFormat::format, labels)
     return launchShareChooser(context, shareText, context.getString(R.string.share_chooser_all))

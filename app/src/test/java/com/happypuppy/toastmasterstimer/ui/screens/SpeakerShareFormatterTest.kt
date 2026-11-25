@@ -224,4 +224,47 @@ class SpeakerShareFormatterTest {
             text
         )
     }
+
+    @Test
+    fun formatSpeakerSummary_resolvesLocalizedSpeechTypeViaIdAndFallsBackToStoredLabel() {
+        val localizedLabels = labels.copy(
+            speechTypeLabels = mapOf("table_topics" to "Temas de Mesa")
+        )
+        val known = Speaker(
+            id = 1,
+            name = "Alex",
+            speechType = "TABLE TOPICS",
+            duration = "01:20",
+            speechTypeId = "table_topics"
+        )
+        val unknown = Speaker(
+            id = 2,
+            name = "Blair",
+            speechType = "Legacy Custom",
+            duration = "03:00",
+            speechTypeId = "unknown"
+        )
+
+        val knownSummary = formatSpeakerSummary(known, "Date 1", localizedLabels)
+        val unknownSummary = formatSpeakerSummary(unknown, "Date 2", localizedLabels)
+
+        assertEquals(
+            """
+            Name: Alex
+            Speech Type: Temas de Mesa
+            Duration: 01:20
+            Recorded on: Date 1
+            """.trimIndent(),
+            knownSummary
+        )
+        assertEquals(
+            """
+            Name: Blair
+            Speech Type: Legacy Custom
+            Duration: 03:00
+            Recorded on: Date 2
+            """.trimIndent(),
+            unknownSummary
+        )
+    }
 }

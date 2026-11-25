@@ -38,24 +38,34 @@ class SpeechTimerViewModelFailureModesTest {
     )
 
     @Test
-    fun queryFailureWithoutMessage_usesLoadFallbackText() = runTest {
+    fun queryFailureWithoutMessage_surfacesTypedLoadError() = runTest {
         val dao = FakeSpeakerDao().apply { queryError = RuntimeException() }
 
         val state = viewModel(dao).uiState.value
 
-        assertEquals("Failed to load speeches", state.error)
+        assertEquals(SpeakerError.LoadFailed, state.error)
         assertTrue(state.speakers.isEmpty())
     }
 
     @Test
-    fun insertFailureWithoutMessage_usesDatabaseFallbackText() = runTest {
+    fun insertFailureWithoutMessage_surfacesTypedSaveError() = runTest {
         val dao = FakeSpeakerDao().apply { insertError = RuntimeException() }
         val vm = viewModel(dao)
 
         vm.saveSpeaker("Dana", "SPEECH", "05:30")
 
-        assertEquals("Database operation failed", vm.uiState.value.error)
+        assertEquals(SpeakerError.SaveFailed, vm.uiState.value.error)
         assertTrue(dao.current.isEmpty())
+    }
+
+    @Test
+    fun restoreFailure_surfacesTypedRestoreErrorWithoutLeakingExceptionMessage() = runTest {
+        val dao = FakeSpeakerDao().apply { insertError = java.io.IOException("raw sqlite detail") }
+        val vm = viewModel(dao)
+
+        vm.restoreSpeaker(speaker(1, "Ann"))
+
+        assertEquals(SpeakerError.RestoreFailed, vm.uiState.value.error)
     }
 
     @Test
@@ -82,7 +92,7 @@ class SpeechTimerViewModelFailureModesTest {
         val vm = viewModel(dao)
 
         vm.saveSpeaker("Eli", "SPEECH", "05:30")
-        assertEquals("disk full", vm.uiState.value.error)
+        assertEquals(SpeakerError.SaveFailed, vm.uiState.value.error)
 
         vm.saveSpeaker("Eli", "SPEECH", "05:30")
 

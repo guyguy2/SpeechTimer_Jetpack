@@ -73,6 +73,13 @@ class SpeechTypeTest {
     }
 
     @Test
+    fun everyType_hasADistinctNonZeroLabelRes() {
+        val labelResIds = SpeechType.entries.map { it.labelRes }
+        assertTrue(labelResIds.all { it != 0 })
+        assertEquals(labelResIds.size, labelResIds.toSet().size)
+    }
+
+    @Test
     fun fromId_roundTripsEveryTypeAndRejectsUnknownIds() {
         SpeechType.entries.forEach { assertEquals(it, SpeechType.fromId(it.id)) }
         assertNull(SpeechType.fromId(""))

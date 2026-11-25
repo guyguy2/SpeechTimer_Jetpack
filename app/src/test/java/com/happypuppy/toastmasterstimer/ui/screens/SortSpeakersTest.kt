@@ -46,10 +46,10 @@ class SortSpeakersTest {
     }
 
     @Test
-    fun everyOption_hasADistinctNonBlankDisplayName() {
-        val names = SortOption.entries.map { it.displayName }
-        assertTrue(names.all { it.isNotBlank() })
-        assertEquals(names.size, names.toSet().size)
+    fun everyOption_hasADistinctNonZeroLabelRes() {
+        val labelResIds = SortOption.entries.map { it.labelRes }
+        assertTrue(labelResIds.all { it != 0 })
+        assertEquals(labelResIds.size, labelResIds.toSet().size)
     }
 
     @Test
