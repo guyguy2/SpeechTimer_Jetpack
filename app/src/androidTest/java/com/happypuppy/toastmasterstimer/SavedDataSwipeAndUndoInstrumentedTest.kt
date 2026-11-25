@@ -14,6 +14,7 @@ import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.DeviceConfigurationOverride
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.WindowSize
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.hasSetTextAction
@@ -30,8 +31,10 @@ import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.happypuppy.toastmasterstimer.data.database.repository.Speaker
+import com.happypuppy.toastmasterstimer.data.database.repository.SpeakerDao
 import com.happypuppy.toastmasterstimer.data.database.repository.SpeakerRepository
 import com.happypuppy.toastmasterstimer.data.preferences.AppTheme
 import com.happypuppy.toastmasterstimer.data.preferences.DataStoreManager
@@ -42,15 +45,24 @@ import com.happypuppy.toastmasterstimer.ui.components.SwipeToDeleteSpeakerItem
 import com.happypuppy.toastmasterstimer.ui.layout.rememberAdaptiveLayoutSpec
 import com.happypuppy.toastmasterstimer.ui.screens.SAVED_GRID_TAG
 import com.happypuppy.toastmasterstimer.ui.screens.SAVED_LIST_TAG
+import com.happypuppy.toastmasterstimer.ui.screens.SavedDataScreen
 import com.happypuppy.toastmasterstimer.ui.screens.SortOption
+import com.happypuppy.toastmasterstimer.ui.screens.SpeakerError
 import com.happypuppy.toastmasterstimer.ui.screens.SpeechDataList
+import com.happypuppy.toastmasterstimer.ui.screens.SpeechTimerViewModel
 import com.happypuppy.toastmasterstimer.ui.theme.SimpleSpeechTimerTheme
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import java.io.IOException
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -434,5 +446,206 @@ class SavedDataSwipeVisualAndGridInstrumentedTest {
         rule.waitForIdle()
         rule.onNodeWithContentDescription("Delete Alpha, TABLE TOPICS").performClick()
         assertEquals(2, deleteCalls)
+    }
+}
+
+@OptIn(ExperimentalTestApi::class)
+@RunWith(AndroidJUnit4::class)
+class SavedDataRestoreSnackbarInstrumentedTest {
+
+    @get:Rule
+    val rule = androidx.compose.ui.test.junit4.v2.createComposeRule()
+
+    private val dataStoreManager: DataStoreManager
+        get() = GlobalContext.get().get()
+
+    @Before
+    fun resetSortOption() = runBlocking {
+        dataStoreManager.setSavedSortOption(SortOption.DATE_NEWEST)
+    }
+
+    private fun waitForText(text: String, timeoutMs: Long = 5_000) =
+        rule.waitUntil(timeoutMs) { rule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() }
+
+    @Test
+    fun restoreFailedSnackbar_supersededByDeleteAnotherSpeaker_preservesUndoStackAndRestoresBoth() {
+        val ann = Speaker(id = 1, name = "Ann", speechType = "SPEECH", duration = "05:00", createdAt = Date(3_000L))
+        val bob = Speaker(id = 2, name = "Bob", speechType = "SPEECH", duration = "05:10", createdAt = Date(2_000L))
+        val carl = Speaker(id = 3, name = "Carl", speechType = "SPEECH", duration = "05:20", createdAt = Date(1_000L))
+        val dao = FakeInstrumentedSpeakerDao(listOf(ann, bob, carl))
+        val viewModel = SpeechTimerViewModel(SpeakerRepository(dao))
+
+        rule.setContent {
+            SimpleSpeechTimerTheme(themePreference = AppTheme.LIGHT, dynamicColor = false) {
+                SavedDataScreen(
+                    navController = rememberNavController(),
+                    viewModel = viewModel
+                )
+            }
+        }
+
+        waitForText("Ann")
+        waitForText("Bob")
+        waitForText("Carl")
+
+        rule.onNodeWithContentDescription("Delete Bob, SPEECH").performClick()
+        waitForText("Deleted Bob's speech data")
+        waitForText("Undo")
+
+        dao.insertError = IOException("disk locked")
+        rule.onNodeWithText("Undo").performClick()
+
+        waitForText("Error: Failed to restore speech")
+        waitForText("Undo")
+        assertTrue(viewModel.uiState.value.canUndo)
+
+        // Deleting Carl while RestoreFailed snackbar is displayed must supersede it without wiping undoStack.
+        rule.onNodeWithContentDescription("Delete Carl, SPEECH").performClick()
+        waitForText("Deleted Carl's speech data")
+        waitForText("Undo")
+        assertTrue("undoStack must remain intact after supersession", viewModel.uiState.value.canUndo)
+
+        rule.onNodeWithText("Undo").performClick()
+        waitForText("Carl")
+        waitForText("Deleted Bob's speech data")
+        waitForText("Undo")
+
+        rule.onNodeWithText("Undo").performClick()
+        waitForText("Bob")
+        rule.waitForIdle()
+
+        assertEquals(setOf("Ann", "Bob", "Carl"), dao.current.map { it.name }.toSet())
+        assertFalse(viewModel.uiState.value.canUndo)
+        assertNull(viewModel.uiState.value.error)
+    }
+
+    @Test
+    fun restoreFailedWhileEventSnackbarActive_afterEventSnackbarTimesOut_doesNotShowDeadUndo() {
+        val ann = Speaker(id = 1, name = "Ann", speechType = "SPEECH", duration = "05:00", createdAt = Date(3_000L))
+        val bob = Speaker(id = 2, name = "Bob", speechType = "SPEECH", duration = "05:10", createdAt = Date(2_000L))
+        val carl = Speaker(id = 3, name = "Carl", speechType = "SPEECH", duration = "05:20", createdAt = Date(1_000L))
+        val dao = FakeInstrumentedSpeakerDao(listOf(ann, bob, carl))
+        val viewModel = SpeechTimerViewModel(SpeakerRepository(dao))
+
+        rule.setContent {
+            SimpleSpeechTimerTheme(themePreference = AppTheme.LIGHT, dynamicColor = false) {
+                SavedDataScreen(
+                    navController = rememberNavController(),
+                    viewModel = viewModel
+                )
+            }
+        }
+
+        waitForText("Carl")
+        rule.onNodeWithContentDescription("Delete Carl, SPEECH").performClick()
+        waitForText("Deleted Carl's speech data")
+        waitForText("Undo")
+
+        // Trigger RestoreFailed while the Deleted(Carl) snackbar is actively shown.
+        dao.insertError = IOException("disk locked")
+        viewModel.restoreSpeaker(bob)
+        rule.waitUntil(5_000) { viewModel.uiState.value.error == SpeakerError.RestoreFailed }
+        assertTrue(viewModel.uiState.value.canUndo)
+
+        // Let Deleted(Carl) time out; RestoreFailed must not show a dead Undo action afterward.
+        rule.mainClock.advanceTimeBy(11_000L)
+        rule.waitForIdle()
+        rule.waitUntil(15_000) {
+            rule.onAllNodesWithText("Deleted Carl's speech data").fetchSemanticsNodes().isEmpty()
+        }
+
+        rule.onAllNodesWithText("Undo").assertCountEquals(0)
+        assertFalse(viewModel.uiState.value.canUndo)
+
+        rule.mainClock.advanceTimeBy(5_000L)
+        rule.waitForIdle()
+        rule.onAllNodesWithText("Undo").assertCountEquals(0)
+        rule.waitUntil(5_000) { viewModel.uiState.value.error == null }
+    }
+
+    @Test
+    fun restoreFailedSnackbar_timeoutWithoutSupersession_clearsUndoStackAndError() {
+        val ann = Speaker(id = 1, name = "Ann", speechType = "SPEECH", duration = "05:00", createdAt = Date(2_000L))
+        val bob = Speaker(id = 2, name = "Bob", speechType = "SPEECH", duration = "05:10", createdAt = Date(1_000L))
+        val dao = FakeInstrumentedSpeakerDao(listOf(ann, bob))
+        val viewModel = SpeechTimerViewModel(SpeakerRepository(dao))
+
+        rule.setContent {
+            SimpleSpeechTimerTheme(themePreference = AppTheme.LIGHT, dynamicColor = false) {
+                SavedDataScreen(
+                    navController = rememberNavController(),
+                    viewModel = viewModel
+                )
+            }
+        }
+
+        waitForText("Bob")
+        rule.onNodeWithContentDescription("Delete Bob, SPEECH").performClick()
+        waitForText("Deleted Bob's speech data")
+
+        dao.insertError = IOException("disk locked")
+        rule.onNodeWithText("Undo").performClick()
+
+        waitForText("Error: Failed to restore speech")
+        waitForText("Undo")
+        assertTrue(viewModel.uiState.value.canUndo)
+
+        rule.mainClock.advanceTimeBy(11_000L)
+        rule.waitForIdle()
+        rule.waitUntil(15_000) {
+            rule.onAllNodesWithText("Error: Failed to restore speech").fetchSemanticsNodes().isEmpty()
+        }
+
+        rule.onAllNodesWithText("Undo").assertCountEquals(0)
+        assertFalse(viewModel.uiState.value.canUndo)
+        assertNull(viewModel.uiState.value.error)
+    }
+
+    private class FakeInstrumentedSpeakerDao(initial: List<Speaker>) : SpeakerDao {
+        private val speakers = MutableStateFlow(initial)
+        private var nextId = (initial.maxOfOrNull { it.id } ?: 0) + 1
+        var insertError: Throwable? = null
+
+        val current: List<Speaker> get() = speakers.value
+
+        override fun getAllSpeakers(): Flow<List<Speaker>> = speakers
+
+        override suspend fun getAllSpeakersOnce(): List<Speaker> = speakers.value
+
+        override suspend fun insertSpeaker(speaker: Speaker) {
+            insertError?.let {
+                insertError = null
+                throw it
+            }
+            val stored = if (speaker.id == 0) speaker.copy(id = nextId++) else speaker
+            speakers.update { list -> list.filterNot { it.id == stored.id } + stored }
+        }
+
+        override suspend fun insertSpeakers(speakers: List<Speaker>) {
+            insertError?.let {
+                insertError = null
+                throw it
+            }
+            this.speakers.update { list ->
+                var updated = list
+                for (speaker in speakers) {
+                    val stored = if (speaker.id == 0) speaker.copy(id = nextId++) else speaker
+                    updated = updated.filterNot { it.id == stored.id } + stored
+                }
+                updated
+            }
+        }
+
+        override suspend fun updateSpeaker(speaker: Speaker) {
+            speakers.update { list -> list.map { if (it.id == speaker.id) speaker else it } }
+        }
+
+        override suspend fun deleteSpeaker(speaker: Speaker) {
+            speakers.update { list -> list.filterNot { it.id == speaker.id } }
+        }
+
+        override suspend fun deleteAllSpeakers() {
+            speakers.value = emptyList()
+        }
     }
 }

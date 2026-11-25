@@ -151,42 +151,91 @@ fun SavedDataScreen(
     var showConfirmDialog by rememberSaveable { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val errorSnackbarState = remember { ErrorSnackbarState() }
+    var isEventSnackbarActive by remember { mutableStateOf(false) }
+    var undoDismissedByEvent by remember { mutableStateOf(false) }
+    var retryRestoreAttempt by remember { mutableIntStateOf(0) }
 
     // Show delete confirmations with Undo. collectLatest cancels any superseded snackbar via
     // CancellationException so SnackbarResult.Dismissed only clears the multi-undo stack on real
     // timeout or user dismissal.
     LaunchedEffect(viewModel, snackbarHostState, resources) {
         viewModel.events.collectLatest { event ->
-            snackbarHostState.currentSnackbarData?.dismiss()
-            val message = when (event) {
-                is SpeakerEvent.Deleted ->
-                    resources.getString(R.string.saved_deleted_snackbar, event.speakerName)
-                SpeakerEvent.AllDeleted ->
-                    resources.getString(R.string.saved_all_deleted_snackbar)
-            }
-            val result = snackbarHostState.showSnackbar(
-                message = message,
-                actionLabel = resources.getString(R.string.saved_undo),
-                duration = SnackbarDuration.Long
-            )
-            when (result) {
-                SnackbarResult.ActionPerformed -> viewModel.undoDelete()
-                SnackbarResult.Dismissed -> viewModel.dismissUndoSnackbar()
+            isEventSnackbarActive = true
+            undoDismissedByEvent = false
+            try {
+                errorSnackbarState.activeToken?.let { token ->
+                    errorSnackbarState.supersededToken = token
+                    viewModel.clearError()
+                }
+                snackbarHostState.currentSnackbarData?.dismiss()
+                val message = when (event) {
+                    is SpeakerEvent.Deleted ->
+                        resources.getString(R.string.saved_deleted_snackbar, event.speakerName)
+                    SpeakerEvent.AllDeleted ->
+                        resources.getString(R.string.saved_all_deleted_snackbar)
+                }
+                val result = snackbarHostState.showSnackbar(
+                    message = message,
+                    actionLabel = resources.getString(R.string.saved_undo),
+                    duration = SnackbarDuration.Long
+                )
+                when (result) {
+                    SnackbarResult.ActionPerformed -> {
+                        if (viewModel.uiState.value.error == SpeakerError.RestoreFailed) {
+                            viewModel.clearError()
+                            retryRestoreAttempt++
+                        }
+                        viewModel.undoDelete()
+                    }
+                    SnackbarResult.Dismissed -> {
+                        undoDismissedByEvent = true
+                        viewModel.dismissUndoSnackbar()
+                    }
+                }
+            } finally {
+                isEventSnackbarActive = false
             }
         }
     }
 
-    var retryRestoreAttempt by remember { mutableIntStateOf(0) }
-
     // Surface transient errors without hiding existing saved speeches
-    LaunchedEffect(error, sortedSpeakers.isNotEmpty(), retryRestoreAttempt) {
-        if (error != null && sortedSpeakers.isNotEmpty()) {
-            val canRetryRestore = error == SpeakerError.RestoreFailed && uiState.canUndo
-            val result = snackbarHostState.showSnackbar(
-                message = resources.getString(R.string.saved_error_prefix, error.message.asString(context)),
-                actionLabel = if (canRetryRestore) resources.getString(R.string.saved_undo) else null,
-                duration = if (canRetryRestore) SnackbarDuration.Long else SnackbarDuration.Short
-            )
+    LaunchedEffect(
+        error,
+        uiState.canUndo,
+        sortedSpeakers.isNotEmpty(),
+        retryRestoreAttempt,
+        isEventSnackbarActive,
+        undoDismissedByEvent
+    ) {
+        if (error == null) {
+            undoDismissedByEvent = false
+            return@LaunchedEffect
+        }
+        if (sortedSpeakers.isNotEmpty() && !isEventSnackbarActive) {
+            val canRetryRestore =
+                error == SpeakerError.RestoreFailed &&
+                    uiState.canUndo &&
+                    viewModel.uiState.value.canUndo &&
+                    !undoDismissedByEvent
+            val token = Any()
+            errorSnackbarState.activeToken = token
+            var wasSuperseded = false
+            val result = try {
+                snackbarHostState.showSnackbar(
+                    message = resources.getString(R.string.saved_error_prefix, error.message.asString(context)),
+                    actionLabel = if (canRetryRestore) resources.getString(R.string.saved_undo) else null,
+                    duration = if (canRetryRestore) SnackbarDuration.Long else SnackbarDuration.Short
+                )
+            } finally {
+                if (errorSnackbarState.activeToken === token) {
+                    errorSnackbarState.activeToken = null
+                }
+                if (errorSnackbarState.supersededToken === token) {
+                    wasSuperseded = true
+                    errorSnackbarState.supersededToken = null
+                }
+            }
             if (canRetryRestore) {
                 when (result) {
                     SnackbarResult.ActionPerformed -> {
@@ -195,7 +244,7 @@ fun SavedDataScreen(
                         viewModel.undoDelete()
                     }
                     SnackbarResult.Dismissed -> {
-                        if (viewModel.uiState.value.error == SpeakerError.RestoreFailed) {
+                        if (!wasSuperseded && viewModel.uiState.value.error == SpeakerError.RestoreFailed) {
                             viewModel.dismissUndoSnackbar()
                         }
                         viewModel.clearError()
@@ -688,6 +737,11 @@ fun EmptyStateContent(
             Text(stringResource(R.string.saved_empty_add_cta))
         }
     }
+}
+
+private class ErrorSnackbarState {
+    var activeToken: Any? = null
+    var supersededToken: Any? = null
 }
 
 private fun launchShareChooser(context: Context, text: String, chooserTitle: String): Boolean {
