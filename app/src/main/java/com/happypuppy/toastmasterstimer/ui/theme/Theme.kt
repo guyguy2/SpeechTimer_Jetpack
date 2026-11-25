@@ -34,12 +34,18 @@ internal val LightColorScheme = lightColorScheme(
 fun SimpleSpeechTimerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
+    themePreference: AppTheme? = null,
     content: @Composable () -> Unit
 ) {
-    val dataStoreManager = koinInject<DataStoreManager>()
-    val themePreference by dataStoreManager.themeFlow.collectAsState(initial = AppTheme.SYSTEM_DEFAULT)
+    val resolvedPreference = if (themePreference != null) {
+        themePreference
+    } else {
+        val dataStoreManager = koinInject<DataStoreManager>()
+        val collected by dataStoreManager.themeFlow.collectAsState(initial = AppTheme.SYSTEM_DEFAULT)
+        collected
+    }
 
-    val useDarkTheme = when (themePreference) {
+    val useDarkTheme = when (resolvedPreference) {
         AppTheme.SYSTEM_DEFAULT -> darkTheme
         AppTheme.LIGHT -> false
         AppTheme.DARK -> true

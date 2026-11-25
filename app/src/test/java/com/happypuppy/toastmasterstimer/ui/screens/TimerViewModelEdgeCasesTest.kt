@@ -3,6 +3,7 @@ package com.happypuppy.toastmasterstimer.ui.screens
 import androidx.lifecycle.SavedStateHandle
 import com.happypuppy.toastmasterstimer.MainDispatcherRule
 import com.happypuppy.toastmasterstimer.util.TimerPhase
+import com.happypuppy.toastmasterstimer.util.TimerThresholds
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -20,7 +21,7 @@ import org.junit.Test
 /**
  * Edge cases around [TimerViewModel] that the main [TimerViewModelTest] does not pin:
  * idempotent start/pause, clock regressions, alert de-duplication across pause/resume,
- * phase skipping, and input coercion in `configure`.
+ * phase skipping, and input coercion in constructor thresholds.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class TimerViewModelEdgeCasesTest {
@@ -32,8 +33,14 @@ class TimerViewModelEdgeCasesTest {
 
     private val created = mutableListOf<TimerViewModel>()
 
-    private fun newVm(clock: () -> Long): TimerViewModel =
-        TimerViewModel(savedStateHandle = SavedStateHandle(), elapsedRealtimeMs = clock).also { created += it }
+    private fun newVm(
+        clock: () -> Long,
+        thresholds: TimerThresholds? = TimerThresholds(1, 2)
+    ): TimerViewModel = TimerViewModel(
+        savedStateHandle = SavedStateHandle(),
+        elapsedRealtimeMs = clock,
+        initialThresholds = thresholds
+    ).also { created += it }
 
     /**
      * Wraps runTest so every ViewModel created via [newVm] is reset in a finally block. Without
@@ -68,7 +75,6 @@ class TimerViewModelEdgeCasesTest {
     @Test
     fun startWhileRunning_isANoOpAndDoesNotRestartTheClock() = runTimerTest {
         val vm = newVm({ testScheduler.currentTime })
-        vm.configure(1, 2)
 
         vm.start()
         advanceTimeBy(5_000L)
@@ -86,7 +92,6 @@ class TimerViewModelEdgeCasesTest {
     @Test
     fun pauseWhileIdle_isANoOp() = runTimerTest {
         val vm = newVm({ testScheduler.currentTime })
-        vm.configure(1, 2)
 
         vm.pause()
 
@@ -98,7 +103,6 @@ class TimerViewModelEdgeCasesTest {
     @Test
     fun toggleRunning_startsThenPausesAndKeepsElapsed() = runTimerTest {
         val vm = newVm({ testScheduler.currentTime })
-        vm.configure(1, 2)
 
         vm.toggleRunning()
         assertTrue(vm.uiState.value.isRunning)
@@ -116,7 +120,6 @@ class TimerViewModelEdgeCasesTest {
     fun clockGoingBackwards_neverProducesNegativeElapsed() = runTimerTest {
         var nowMs = 10_000L
         val vm = newVm({ nowMs })
-        vm.configure(1, 2)
 
         vm.start()
         nowMs = 5_000L
@@ -131,7 +134,6 @@ class TimerViewModelEdgeCasesTest {
     @Test
     fun pauseAndResumeInsideAPhase_doesNotReAlertThatPhase() = runTimerTest {
         val vm = newVm({ testScheduler.currentTime })
-        vm.configure(1, 2)
         val (alerts, job) = collectAlerts(vm)
 
         vm.start()
@@ -160,7 +162,6 @@ class TimerViewModelEdgeCasesTest {
     @Test
     fun runningPastRed_emitsRedOnlyOnce() = runTimerTest {
         val vm = newVm({ testScheduler.currentTime })
-        vm.configure(1, 2)
         val (alerts, job) = collectAlerts(vm)
 
         vm.start()
@@ -181,7 +182,6 @@ class TimerViewModelEdgeCasesTest {
         // phase matters), but returning to the app now fires one catch-up cue for that phase.
         var nowMs = 0L
         val vm = newVm({ nowMs })
-        vm.configure(1, 2)
         val (alerts, job) = collectAlerts(vm)
         val (catchUps, catchUpJob) = collectCatchUps(vm)
 
@@ -210,7 +210,6 @@ class TimerViewModelEdgeCasesTest {
     fun returnWithoutCrossingAPhase_hasNoCatchUpCue() = runTimerTest {
         var nowMs = 0L
         val vm = newVm({ nowMs })
-        vm.configure(1, 2)
         val (catchUps, job) = collectCatchUps(vm)
 
         vm.start()
@@ -230,7 +229,6 @@ class TimerViewModelEdgeCasesTest {
     fun catchUpCue_namesTheCurrentPhaseAndFiresOnlyOnce() = runTimerTest {
         var nowMs = 0L
         val vm = newVm({ nowMs })
-        vm.configure(1, 2)
         val (catchUps, job) = collectCatchUps(vm)
 
         vm.start()
@@ -257,7 +255,6 @@ class TimerViewModelEdgeCasesTest {
     fun foregroundSyncThatCrossesAPhase_alertsOnceWithoutADuplicateCatchUp() = runTimerTest {
         var nowMs = 0L
         val vm = newVm({ nowMs })
-        vm.configure(1, 2)
         val (alerts, job) = collectAlerts(vm)
         val (catchUps, catchUpJob) = collectCatchUps(vm)
 
@@ -280,7 +277,6 @@ class TimerViewModelEdgeCasesTest {
         // an instant before ON_START, and the catch-up used to fire a second time.
         var nowMs = 0L
         val vm = newVm({ nowMs })
-        vm.configure(1, 2)
         val (alerts, job) = collectAlerts(vm)
         val (catchUps, catchUpJob) = collectCatchUps(vm)
 
@@ -302,7 +298,6 @@ class TimerViewModelEdgeCasesTest {
     fun pausedTimer_hasNoCatchUpCueOnReturn() = runTimerTest {
         var nowMs = 0L
         val vm = newVm({ nowMs })
-        vm.configure(1, 2)
         val (catchUps, job) = collectCatchUps(vm)
 
         vm.start()
@@ -323,7 +318,6 @@ class TimerViewModelEdgeCasesTest {
     fun syncElapsedWhilePaused_doesNotAdvanceTime() = runTimerTest {
         var nowMs = 0L
         val vm = newVm({ nowMs })
-        vm.configure(1, 2)
 
         vm.start()
         nowMs = 4_000L
@@ -336,37 +330,19 @@ class TimerViewModelEdgeCasesTest {
     }
 
     @Test
-    fun pausedElapsedSurvivesReconfigureWithIdenticalThresholds() = runTimerTest {
-        var nowMs = 0L
-        val vm = newVm({ nowMs })
-        vm.configure(1, 2)
+    fun initialThresholds_coercesNegativeAndInvertedInput() = runTimerTest {
+        val negative = newVm({ 0L }, thresholds = TimerThresholds(minMinutes = -3, maxMinutes = -1))
+        assertEquals(0, negative.uiState.value.thresholds.minMinutes)
+        assertEquals(0, negative.uiState.value.thresholds.maxMinutes)
 
-        vm.start()
-        nowMs = 42_000L
-        vm.pause()
-        vm.configure(1, 2)
-
-        assertEquals(42, vm.uiState.value.elapsedSeconds)
-        assertFalse(vm.uiState.value.isRunning)
-    }
-
-    @Test
-    fun configure_coercesNegativeAndInvertedInput() = runTimerTest {
-        val vm = newVm({ 0L })
-
-        vm.configure(minMinutes = -3, maxMinutes = -1)
-        assertEquals(0, vm.uiState.value.thresholds.minMinutes)
-        assertEquals(0, vm.uiState.value.thresholds.maxMinutes)
-
-        vm.configure(minMinutes = 5, maxMinutes = 2)
-        assertEquals(5, vm.uiState.value.thresholds.minMinutes)
-        assertEquals(5, vm.uiState.value.thresholds.maxMinutes)
+        val inverted = newVm({ 0L }, thresholds = TimerThresholds(minMinutes = 5, maxMinutes = 2))
+        assertEquals(5, inverted.uiState.value.thresholds.minMinutes)
+        assertEquals(5, inverted.uiState.value.thresholds.maxMinutes)
     }
 
     @Test
     fun resetWhilePaused_clearsElapsedAndAllowsAFreshRun() = runTimerTest {
         val vm = newVm({ testScheduler.currentTime })
-        vm.configure(1, 2)
 
         vm.start()
         advanceTimeBy(10_000L)
@@ -385,13 +361,11 @@ class TimerViewModelEdgeCasesTest {
     }
 
     @Test
-    fun uiVisibilityToggle_survivesResetAndReconfigure() = runTimerTest {
+    fun uiVisibilityToggle_survivesReset() = runTimerTest {
         val vm = newVm({ 0L })
-        vm.configure(1, 2)
 
         vm.toggleUiVisibility()
         vm.reset()
-        vm.configure(5, 7)
 
         // Characterization: hiding the controls is a view preference, not timer state.
         assertFalse(vm.uiState.value.isUiVisible)

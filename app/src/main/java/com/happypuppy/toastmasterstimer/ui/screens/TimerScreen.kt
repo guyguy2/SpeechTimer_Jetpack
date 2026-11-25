@@ -53,6 +53,7 @@ import com.happypuppy.toastmasterstimer.alert.AndroidAlertPlayer
 import com.happypuppy.toastmasterstimer.alert.dispatchPhaseAlert
 import com.happypuppy.toastmasterstimer.data.preferences.DataStoreManager
 import com.happypuppy.toastmasterstimer.navigation.Screen
+import com.happypuppy.toastmasterstimer.navigation.TimerRoute
 import com.happypuppy.toastmasterstimer.ui.components.InputDialog
 import com.happypuppy.toastmasterstimer.util.formatTime
 import kotlinx.coroutines.Job
@@ -66,16 +67,10 @@ const val FOREGROUND_HINT = "Keep this screen open for alerts"
 @Composable
 fun TimerScreen(
     navController: NavHostController,
-    title: String = "Timer Screen",
-    minMinutes: Int = 1,
-    maxMinutes: Int = 2,
+    route: TimerRoute,
     viewModel: SpeechTimerViewModel = koinViewModel(),
     timerViewModel: TimerViewModel = koinViewModel()
 ) {
-    LaunchedEffect(minMinutes, maxMinutes) {
-        timerViewModel.configure(minMinutes, maxMinutes)
-    }
-
     val timerState by timerViewModel.uiState.collectAsState()
     val ticks = timerState.elapsedSeconds
     val isTimerRunning = timerState.isRunning
@@ -135,11 +130,8 @@ fun TimerScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    val speechType = remember(title) {
-        val regex = "(.*?)\\s*\\(.*\\)".toRegex()
-        val matchResult = regex.find(title)
-        matchResult?.groupValues?.get(1)?.trim()?.takeIf { it.isNotEmpty() } ?: title
-    }
+    val title = route.title
+    val speechType = route.speechType.label
 
     val formattedTime = remember(ticks) { formatTime(ticks) }
 

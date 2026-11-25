@@ -12,24 +12,22 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.happypuppy.toastmasterstimer.model.SpeechType
+import com.happypuppy.toastmasterstimer.navigation.TimerRoute
 
 @Composable
 fun SpeechTimerButton(
-    text: String,
+    speechType: SpeechType,
     navController: NavHostController,
     modifier: Modifier = Modifier
 ) {
-    val regex = "\\((\\d+) TO (\\d+) MIN\\)".toRegex()
-    val matchResult = regex.find(text)
-
-    val minMinutes = matchResult?.groupValues?.get(1)?.toIntOrNull() ?: 1
-    val maxMinutes = matchResult?.groupValues?.get(2)?.toIntOrNull() ?: 2
+    val minMinutes = requireNotNull(speechType.presetMinMinutes) { "${speechType.id} has no preset range" }
+    val maxMinutes = requireNotNull(speechType.presetMaxMinutes) { "${speechType.id} has no preset range" }
+    val text = speechType.timerTitle(minMinutes, maxMinutes)
 
     Button(
         onClick = {
-            navController.navigate(
-                "timer_screen/${text.replace("/", "-")}/$minMinutes/$maxMinutes"
-            )
+            navController.navigate(TimerRoute(speechType.id, minMinutes, maxMinutes))
         },
         modifier = modifier
             .fillMaxWidth()

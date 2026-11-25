@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches Material3 DarkColorScheme background so dark cold starts avoid a white flash. -->
+    <color name="window_background">#141218</color>
+    <color name="splash_icon_background">#1E1E1E</color>
+    <color name="splash_icon_tint">#D0BCFF</color>
+</resources>

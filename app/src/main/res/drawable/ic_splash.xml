@@ -1,0 +1,37 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Top stopwatch crown -->
+    <path
+        android:fillColor="@color/splash_icon_tint"
+        android:pathData="M48,29h12c1.1,0 2,0.9 2,2v2c0,1.1 -0.9,2 -2,2h-3.5v3.2c-1.6,-0.2 -3.4,-0.2 -5,0V35H48c-1.1,0 -2,-0.9 -2,-2v-2C46,29.9 46.9,29 48,29z" />
+    <!-- Angled side reset button -->
+    <path
+        android:fillColor="@color/splash_icon_tint"
+        android:pathData="M67.2,37.2l4.4,4.4c0.8,0.8 0.8,2 0,2.8l-1.6,1.6l-7.2,-7.2l1.6,-1.6C65.2,36.4 66.4,36.4 67.2,37.2z" />
+    <!-- Outer stopwatch ring -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="@color/splash_icon_tint"
+        android:strokeWidth="4.2"
+        android:pathData="M54,39.5a18.5,18.5 0 1,0 0,37a18.5,18.5 0 1,0 0,-37z" />
+    <!-- Centered microphone capsule -->
+    <path
+        android:fillColor="@color/splash_icon_tint"
+        android:pathData="M54,48c2.8,0 5,2.2 5,5v6c0,2.8 -2.2,5 -5,5s-5,-2.2 -5,-5v-6C49,50.2 51.2,48 54,48z" />
+    <!-- Microphone cradle & stand -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="@color/splash_icon_tint"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round"
+        android:pathData="M46,58.5c0,4.4 3.6,8 8,8s8,-3.6 8,-8" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="@color/splash_icon_tint"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round"
+        android:pathData="M54,66.5V71M49,71h10" />
+</vector>

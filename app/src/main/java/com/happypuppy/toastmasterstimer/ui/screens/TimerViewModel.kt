@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.happypuppy.toastmasterstimer.util.TimerPhase
 import com.happypuppy.toastmasterstimer.util.TimerThresholds
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -20,6 +21,21 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+
+/** Drives periodic timer updates; injectable so tests can control ticks and verify cancellation. */
+fun interface TimerTicker {
+    fun start(scope: CoroutineScope, nextDelayMs: () -> Long, onTick: () -> Unit): Job
+}
+
+private object DelayTimerTicker : TimerTicker {
+    override fun start(scope: CoroutineScope, nextDelayMs: () -> Long, onTick: () -> Unit): Job =
+        scope.launch {
+            while (isActive) {
+                delay(nextDelayMs().coerceIn(1L, 1000L))
+                onTick()
+            }
+        }
+}
 
 data class TimerUiState(
     val elapsedSeconds: Int = 0,
@@ -42,7 +58,9 @@ data class TimerSnapshot(val elapsedMs: Long)
  */
 class TimerViewModel(
     private val savedStateHandle: SavedStateHandle,
-    private val elapsedRealtimeMs: () -> Long = { SystemClock.elapsedRealtime() }
+    private val elapsedRealtimeMs: () -> Long = { SystemClock.elapsedRealtime() },
+    initialThresholds: TimerThresholds? = null,
+    private val ticker: TimerTicker = DelayTimerTicker
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TimerUiState())
@@ -60,7 +78,6 @@ class TimerViewModel(
      */
     val catchUpCues: Flow<TimerPhase> = _catchUpCues.receiveAsFlow()
 
-    private var isConfigured = false
     private var accumulatedMs: Long = 0L
     private var startedAtMs: Long? = null
     private var lastAlertedPhase: TimerPhase = TimerPhase.BEFORE_GREEN
@@ -69,19 +86,30 @@ class TimerViewModel(
     private var lastLiveAlertAtMs: Long? = null
 
     init {
-        restoreFromSavedState()
+        if (!restoreFromSavedState()) {
+            val resolved = readRouteArgs()
+                ?: initialThresholds?.let { sanitizeThresholds(it.minMinutes, it.maxMinutes) }
+            if (resolved != null) {
+                _uiState.update { it.copy(thresholds = resolved) }
+            }
+        }
     }
 
-    fun configure(minMinutes: Int, maxMinutes: Int) {
+    private fun sanitizeThresholds(minMinutes: Int, maxMinutes: Int): TimerThresholds {
         val safeMin = minMinutes.coerceAtLeast(0)
         val safeMax = maxMinutes.coerceAtLeast(safeMin)
-        val newThresholds = TimerThresholds(minMinutes = safeMin, maxMinutes = safeMax)
-        if (isConfigured && _uiState.value.thresholds == newThresholds) {
-            return
-        }
-        isConfigured = true
-        _uiState.update { it.copy(thresholds = newThresholds) }
-        reset()
+        return TimerThresholds(minMinutes = safeMin, maxMinutes = safeMax)
+    }
+
+    /**
+     * Reads the range from the timer route's arguments, which Navigation puts in this handle under
+     * the TimerRoute property names. A restored clock state wins, and a handle without the
+     * arguments falls back to constructor `initialThresholds` or the default range.
+     */
+    private fun readRouteArgs(): TimerThresholds? {
+        val minMinutes = savedStateHandle.get<Int>(ARG_MIN_MINUTES) ?: return null
+        val maxMinutes = savedStateHandle.get<Int>(ARG_MAX_MINUTES) ?: return null
+        return sanitizeThresholds(minMinutes, maxMinutes)
     }
 
     fun start() {
@@ -95,13 +123,16 @@ class TimerViewModel(
 
     private fun launchTickLoop() {
         tickJob?.cancel()
-        tickJob = viewModelScope.launch {
-            while (isActive) {
-                val msUntilNextSecond = 1000L - (currentElapsedMs() % 1000L)
-                delay(msUntilNextSecond.coerceIn(1L, 1000L))
-                syncElapsed()
-            }
-        }
+        tickJob = ticker.start(
+            scope = viewModelScope,
+            nextDelayMs = { 1000L - (currentElapsedMs() % 1000L) },
+            onTick = ::syncElapsed
+        )
+    }
+
+    override fun onCleared() {
+        tickJob?.cancel()
+        tickJob = null
     }
 
     fun pause() {
@@ -207,17 +238,16 @@ class TimerViewModel(
         savedStateHandle[KEY_PHASE] = _uiState.value.phase.name
     }
 
-    private fun restoreFromSavedState() {
-        val minMinutes = savedStateHandle.get<Int>(KEY_MIN_MINUTES) ?: return
-        val maxMinutes = savedStateHandle.get<Int>(KEY_MAX_MINUTES) ?: return
+    private fun restoreFromSavedState(): Boolean {
+        val minMinutes = savedStateHandle.get<Int>(KEY_MIN_MINUTES) ?: return false
+        val maxMinutes = savedStateHandle.get<Int>(KEY_MAX_MINUTES) ?: return false
         val accumulated = (savedStateHandle.get<Long>(KEY_ACCUMULATED_MS) ?: 0L).coerceAtLeast(0L)
         // elapsedRealtime restarts at a reboot, so a saved start in the future means the clock is stale.
         val startedAt = savedStateHandle.get<Long>(KEY_STARTED_AT_MS)
             ?.takeIf { it >= 0L && it <= elapsedRealtimeMs() }
-        if (accumulated == 0L && startedAt == null) return
+        if (accumulated == 0L && startedAt == null) return false
 
-        val thresholds = TimerThresholds(minMinutes = minMinutes, maxMinutes = maxMinutes)
-        isConfigured = true
+        val thresholds = sanitizeThresholds(minMinutes, maxMinutes)
         accumulatedMs = accumulated
         startedAtMs = startedAt
         phaseWhenLeft = savedStateHandle.get<String>(KEY_PHASE)
@@ -234,6 +264,7 @@ class TimerViewModel(
             isRestored = true
         )
         if (startedAt != null) launchTickLoop()
+        return true
     }
 
     private fun currentElapsedMs(): Long {
@@ -246,6 +277,9 @@ class TimerViewModel(
     }
 
     private companion object {
+        // Must match the property names of navigation.TimerRoute (checked on a device by TimerRouteNavigationTest).
+        const val ARG_MIN_MINUTES = "minMinutes"
+        const val ARG_MAX_MINUTES = "maxMinutes"
         const val KEY_MIN_MINUTES = "timer_min_minutes"
         const val KEY_MAX_MINUTES = "timer_max_minutes"
         const val KEY_ACCUMULATED_MS = "timer_accumulated_ms"

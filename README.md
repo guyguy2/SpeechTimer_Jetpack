@@ -64,17 +64,18 @@ Single-module MVVM + Repository pattern.
 
 ```
 app/src/main/java/com/happypuppy/toastmasterstimer/
-├── MainActivity.kt    # Entry point, edge-to-edge setup, NavGraph, MainScreen
+├── MainActivity.kt    # Entry point, system splash preload, edge-to-edge setup, NavGraph, MainScreen
 ├── MainApp.kt         # Application class initializing Koin
+├── StartupTheme.kt    # Holds initial AppTheme from DataStore for splash screen release
 ├── data/
 │   ├── database/      # Room Speaker entity, DAO, AppDatabase, SpeakerRepository
 │   ├── preferences/   # DataStoreManager (theme, vibration, sound)
 │   └── repository/    # Room DateConverters
 ├── di/                # Koin module bindings
-├── navigation/        # Screen route definitions
+├── navigation/        # Screen and typed TimerRoute definitions
 ├── ui/
 │   ├── components/    # SpeechTimerButton, MinutePicker, TimerProgressBar, InputDialog, SpeechTimerBottomBar
-│   ├── screens/       # TimerScreen, TimerViewModel, CustomSpeechScreen, SavedDataScreen, SettingsScreen, SplashScreen, SpeechTimerViewModel
+│   ├── screens/       # TimerScreen, TimerViewModel, CustomSpeechScreen, SavedDataScreen, SettingsScreen, SpeechTimerViewModel
 │   └── theme/         # Material 3 / Material You theme, colors, typography
 └── util/              # TimerThresholds phase math, CustomSpeechRange clamping, formatting helpers
 ```

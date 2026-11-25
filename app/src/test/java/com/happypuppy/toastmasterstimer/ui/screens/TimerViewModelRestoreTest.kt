@@ -33,8 +33,15 @@ class TimerViewModelRestoreTest {
 
     private val created = mutableListOf<TimerViewModel>()
 
-    private fun newVm(handle: SavedStateHandle = SavedStateHandle(), clock: () -> Long): TimerViewModel =
-        TimerViewModel(savedStateHandle = handle, elapsedRealtimeMs = clock).also { created += it }
+    private fun newVm(
+        handle: SavedStateHandle = SavedStateHandle(),
+        initialThresholds: com.happypuppy.toastmasterstimer.util.TimerThresholds? = null,
+        clock: () -> Long
+    ): TimerViewModel = TimerViewModel(
+        savedStateHandle = handle,
+        elapsedRealtimeMs = clock,
+        initialThresholds = initialThresholds
+    ).also { created += it }
 
     /** Resets every ViewModel in a finally block so a failed assertion cannot hang the tick loop. */
     private fun runTimerTest(body: suspend TestScope.() -> Unit) = runTest(testDispatcher) {
@@ -90,24 +97,15 @@ class TimerViewModelRestoreTest {
     }
 
     @Test
-    fun restoredThresholds_makeTheScreensConfigureCallANoOp() = runTimerTest {
-        val vm = newVm(savedHandle(accumulatedMs = 45_000L)) { testScheduler.currentTime }
-
-        vm.configure(1, 2)
+    fun restoredState_ignoresInitialThresholds() = runTimerTest {
+        val vm = newVm(
+            handle = savedHandle(accumulatedMs = 45_000L),
+            initialThresholds = com.happypuppy.toastmasterstimer.util.TimerThresholds(5, 7)
+        ) { testScheduler.currentTime }
 
         assertEquals(45, vm.uiState.value.elapsedSeconds)
         assertTrue(vm.uiState.value.isRestored)
-    }
-
-    @Test
-    fun restoredThenConfiguredWithDifferentThresholds_resets() = runTimerTest {
-        val vm = newVm(savedHandle(accumulatedMs = 45_000L)) { testScheduler.currentTime }
-
-        vm.configure(5, 7)
-
-        assertEquals(0, vm.uiState.value.elapsedSeconds)
-        assertFalse(vm.uiState.value.isRestored)
-        assertEquals(300, vm.uiState.value.thresholds.greenSeconds)
+        assertEquals(60, vm.uiState.value.thresholds.greenSeconds)
     }
 
     @Test
@@ -164,7 +162,6 @@ class TimerViewModelRestoreTest {
     fun runningTimer_roundTripsThroughTheHandleIntoANewViewModel() = runTimerTest {
         val handle = SavedStateHandle()
         val first = newVm(handle) { testScheduler.currentTime }
-        first.configure(1, 2)
         first.start()
         advanceTimeBy(30_000L)
         runCurrent()
@@ -184,7 +181,6 @@ class TimerViewModelRestoreTest {
     fun pausedTimer_roundTripsItsAccumulatedTime() = runTimerTest {
         val handle = SavedStateHandle()
         val first = newVm(handle) { testScheduler.currentTime }
-        first.configure(1, 2)
         first.start()
         advanceTimeBy(12_300L)
         runCurrent()
@@ -202,7 +198,6 @@ class TimerViewModelRestoreTest {
     fun reset_clearsTheSavedStateSoNothingIsRestored() = runTimerTest {
         val handle = SavedStateHandle()
         val first = newVm(handle) { testScheduler.currentTime }
-        first.configure(1, 2)
         first.start()
         advanceTimeBy(20_000L)
         runCurrent()
@@ -235,7 +230,6 @@ class TimerViewModelRestoreTest {
     @Test
     fun undoReset_restoresTheElapsedTimePausedWithoutReAlerting() = runTimerTest {
         val vm = newVm { testScheduler.currentTime }
-        vm.configure(1, 2)
         val alerts = mutableListOf<TimerPhase>()
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.phaseAlerts.collect { alerts.add(it) } }
 
@@ -266,7 +260,6 @@ class TimerViewModelRestoreTest {
     @Test
     fun undoReset_isIgnoredOnceTheTimerHasMovedOn() = runTimerTest {
         val vm = newVm { testScheduler.currentTime }
-        vm.configure(1, 2)
         vm.start()
         advanceTimeBy(10_000L)
         runCurrent()
