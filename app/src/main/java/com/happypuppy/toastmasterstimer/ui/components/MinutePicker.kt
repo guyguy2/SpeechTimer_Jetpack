@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -19,7 +20,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.happypuppy.toastmasterstimer.R
 
 @Composable
@@ -36,7 +36,7 @@ fun MinutePicker(
     ) {
         Text(
             text = label,
-            fontSize = 16.sp,
+            style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
@@ -68,14 +68,14 @@ fun MinutePicker(
                     // The glyph is decoration; the button is named by its description.
                     Text(
                         text = "▲",
-                        fontSize = 24.sp,
+                        style = MaterialTheme.typography.headlineSmall,
                         modifier = Modifier.clearAndSetSemantics { }
                     )
                 }
 
                 Text(
                     text = value.toString(),
-                    fontSize = 32.sp,
+                    style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
@@ -93,7 +93,7 @@ fun MinutePicker(
                 ) {
                     Text(
                         text = "▼",
-                        fontSize = 24.sp,
+                        style = MaterialTheme.typography.headlineSmall,
                         modifier = Modifier.clearAndSetSemantics { }
                     )
                 }
@@ -102,7 +102,7 @@ fun MinutePicker(
 
         Text(
             text = pluralStringResource(R.plurals.custom_speech_minutes_unit, value),
-            fontSize = 14.sp,
+            style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(top = 8.dp)
         )
     }

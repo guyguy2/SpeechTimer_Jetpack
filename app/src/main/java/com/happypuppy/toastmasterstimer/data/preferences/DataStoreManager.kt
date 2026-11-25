@@ -19,6 +19,7 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "se
 
 // Preference keys
 val THEME_KEY = stringPreferencesKey("app_theme")
+val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color_enabled")
 val VIBRATE_KEY = booleanPreferencesKey("vibrate_enabled")
 val SOUND_KEY = booleanPreferencesKey("sound_enabled")
 val SAVED_SORT_KEY = stringPreferencesKey("saved_sort_option")
@@ -51,6 +52,21 @@ class DataStoreManager(private val context: Context) {
     suspend fun setTheme(theme: AppTheme) {
         context.dataStore.edit { settings ->
             settings[THEME_KEY] = theme.value
+        }
+    }
+
+    // Opt-in Material You dynamic color (default: false so Brand Default is active out of the box).
+    val dynamicColorEnabledFlow: Flow<Boolean> = context.dataStore.data
+        .catch { e ->
+            if (e is IOException) emit(emptyPreferences()) else throw e
+        }
+        .map { preferences ->
+            preferences[DYNAMIC_COLOR_KEY] ?: false
+        }
+
+    suspend fun setDynamicColorEnabled(enabled: Boolean) {
+        context.dataStore.edit { settings ->
+            settings[DYNAMIC_COLOR_KEY] = enabled
         }
     }
 

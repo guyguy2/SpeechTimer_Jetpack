@@ -159,6 +159,8 @@
     <string name="settings_theme_system">System Default</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
+    <string name="settings_dynamic_color">Dynamic color</string>
+    <string name="settings_dynamic_color_description">Match app colors to your device wallpaper</string>
     <string name="settings_vibration">Vibration</string>
     <string name="settings_vibration_description">Vibrate when display changes color</string>
     <string name="settings_sound">Sound</string>
