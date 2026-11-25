@@ -67,11 +67,18 @@ class MainActivity : ComponentActivity() {
         splashScreen.setKeepOnScreenCondition { !startup.isResolved }
         enableEdgeToEdge()
 
-        lifecycleScope.launch { startup.collectFrom(dataStoreManager.themeFlow) }
+        lifecycleScope.launch {
+            startup.collectFrom(
+                themeSource = dataStoreManager.themeFlow,
+                dynamicColorSource = dataStoreManager.dynamicColorEnabledFlow
+            )
+        }
 
         setContent {
-            val themePref by startup.theme.collectAsState()
-            val resolvedTheme = themePref ?: return@setContent
+            val startupState by startup.state.collectAsState()
+            val resolvedState = startupState ?: return@setContent
+            val resolvedTheme = resolvedState.theme
+            val resolvedDynamicColor = resolvedState.dynamicColorEnabled
             val isSystemDark = isSystemInDarkTheme()
             val useDarkTheme = when (resolvedTheme) {
                 AppTheme.SYSTEM_DEFAULT -> isSystemDark
@@ -94,7 +101,10 @@ class MainActivity : ComponentActivity() {
             }
 
             val koinViewModel = koinViewModel<SpeechTimerViewModel>()
-            SimpleSpeechTimerTheme(themePreference = resolvedTheme) {
+            SimpleSpeechTimerTheme(
+                themePreference = resolvedTheme,
+                dynamicColor = resolvedDynamicColor
+            ) {
                 val navController = rememberNavController()
                 NavGraph(navController = navController, koinViewModel = koinViewModel)
             }

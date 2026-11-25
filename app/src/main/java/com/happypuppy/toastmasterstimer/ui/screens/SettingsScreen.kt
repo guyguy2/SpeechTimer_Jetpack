@@ -10,10 +10,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -48,6 +50,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
@@ -91,6 +94,8 @@ fun SettingsScreen(navController: NavHostController) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             ThemeSelector(dataStoreManager)
+
+            DynamicColorSetting(dataStoreManager)
 
             HorizontalDivider()
 
@@ -197,6 +202,23 @@ fun ThemeOption(
 }
 
 @Composable
+fun DynamicColorSetting(dataStoreManager: DataStoreManager) {
+    val scope = rememberCoroutineScope()
+    val isEnabled by dataStoreManager.dynamicColorEnabledFlow.collectAsState(initial = false)
+
+    SettingSwitch(
+        title = stringResource(R.string.settings_dynamic_color),
+        description = stringResource(R.string.settings_dynamic_color_description),
+        checked = isEnabled,
+        onCheckedChange = { enabled ->
+            scope.launch {
+                dataStoreManager.setDynamicColorEnabled(enabled)
+            }
+        }
+    )
+}
+
+@Composable
 fun VibrationSetting(dataStoreManager: DataStoreManager) {
     val context = LocalContext.current
     val alertPlayer = remember(context) { AndroidAlertPlayer(context) }
@@ -255,6 +277,12 @@ fun SettingSwitch(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .toggleable(
+                value = checked,
+                role = Role.Switch,
+                onValueChange = onCheckedChange
+            )
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -269,9 +297,10 @@ fun SettingSwitch(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+        Spacer(modifier = Modifier.width(12.dp))
         Switch(
             checked = checked,
-            onCheckedChange = onCheckedChange,
+            onCheckedChange = null,
             thumbContent = if (checked) {
                 {
                     Icon(

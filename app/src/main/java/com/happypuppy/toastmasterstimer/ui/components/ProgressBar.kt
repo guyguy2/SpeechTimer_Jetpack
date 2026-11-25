@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,9 +16,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -27,11 +30,14 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.unit.dp
 import com.happypuppy.toastmasterstimer.R
+import com.happypuppy.toastmasterstimer.ui.theme.LocalPhaseColors
+import com.happypuppy.toastmasterstimer.ui.theme.PhasePalette
+import com.happypuppy.toastmasterstimer.util.TimerPhase
 import kotlin.math.roundToInt
 
 /**
- * A custom progress bar that changes color based on the current progress
- * with markers indicating transition points.
+ * Elapsed-time progress bar with threshold markers styled from semantic [PhasePalette] tokens
+ * so track, progress fill, and threshold markers stay high-contrast on every phase background.
  */
 @Composable
 fun TimerProgressBar(
@@ -41,7 +47,14 @@ fun TimerProgressBar(
     yellowThreshold: Int,
     redThreshold: Int,
     modifier: Modifier = Modifier,
-    showLabels: Boolean = true
+    showLabels: Boolean = true,
+    phase: TimerPhase = when {
+        currentSeconds < greenThreshold -> TimerPhase.BEFORE_GREEN
+        currentSeconds < yellowThreshold -> TimerPhase.GREEN
+        currentSeconds < redThreshold -> TimerPhase.YELLOW
+        else -> TimerPhase.RED
+    },
+    palette: PhasePalette = LocalPhaseColors.current.paletteFor(phase)
 ) {
     val safeMax = maxSeconds.coerceAtLeast(1).toFloat()
     val progress = (currentSeconds.toFloat() / safeMax).coerceIn(0f, 1f)
@@ -51,13 +64,6 @@ fun TimerProgressBar(
         animationSpec = tween(durationMillis = 300),
         label = "progressAnimation"
     )
-
-    val progressColor = when {
-        currentSeconds < greenThreshold -> Color.LightGray.copy(alpha = 0.7f)
-        currentSeconds < yellowThreshold -> Color(0xFF00FF00)
-        currentSeconds < redThreshold -> Color(0xFFFFFF00)
-        else -> Color(0xFFFF4444)
-    }
 
     val greenPosition = (greenThreshold.toFloat() / safeMax).coerceIn(0f, 1f)
     val yellowPosition = (yellowThreshold.toFloat() / safeMax).coerceIn(0f, 1f)
@@ -77,55 +83,68 @@ fun TimerProgressBar(
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(12.dp)
+                .height(16.dp)
         ) {
-            drawLine(
-                color = Color.DarkGray.copy(alpha = 0.7f),
-                start = Offset(0f, size.height / 2),
-                end = Offset(size.width, size.height / 2),
-                strokeWidth = size.height,
-                cap = StrokeCap.Round
+            val trackHeight = 10.dp.toPx().coerceAtMost(size.height * 0.7f)
+            val trackTop = (size.height - trackHeight) / 2f
+            val cornerRadius = CornerRadius(trackHeight / 2f, trackHeight / 2f)
+            val borderStroke = 1.5.dp.toPx()
+
+            // Recessed track fill
+            drawRoundRect(
+                color = palette.progressTrack,
+                topLeft = Offset(0f, trackTop),
+                size = Size(size.width, trackHeight),
+                cornerRadius = cornerRadius
             )
 
-            drawLine(
-                color = progressColor,
-                start = Offset(0f, size.height / 2),
-                end = Offset(size.width * animatedProgress, size.height / 2),
-                strokeWidth = size.height * 0.9f,
-                cap = StrokeCap.Round
+            // Active progress indicator
+            val indicatorEnd = (size.width * animatedProgress).coerceIn(0f, size.width)
+            if (indicatorEnd > 0f) {
+                drawLine(
+                    color = palette.progressIndicator,
+                    start = Offset(trackHeight / 2f, size.height / 2f),
+                    end = Offset(indicatorEnd.coerceAtLeast(trackHeight / 2f), size.height / 2f),
+                    strokeWidth = trackHeight - borderStroke,
+                    cap = StrokeCap.Round
+                )
+            }
+
+            // Crisp track outline for >= 3:1 non-text visibility against every phase canvas
+            drawRoundRect(
+                color = palette.progressTrackBorder,
+                topLeft = Offset(0f, trackTop),
+                size = Size(size.width, trackHeight),
+                cornerRadius = cornerRadius,
+                style = Stroke(width = borderStroke)
             )
 
-            drawLine(
-                color = Color.White,
-                start = Offset(size.width * greenPosition, 0f),
-                end = Offset(size.width * greenPosition, size.height),
-                strokeWidth = 2.dp.toPx()
-            )
+            // Threshold ticks
+            val tickStroke = 2.dp.toPx()
+            listOf(greenPosition, yellowPosition, redPosition).forEach { pos ->
+                val x = size.width * pos
+                drawLine(
+                    color = palette.progressTrackBorder,
+                    start = Offset(x, trackTop - 2.dp.toPx()),
+                    end = Offset(x, trackTop + trackHeight + 2.dp.toPx()),
+                    strokeWidth = tickStroke,
+                    cap = StrokeCap.Round
+                )
+            }
 
-            drawLine(
-                color = Color.White,
-                start = Offset(size.width * yellowPosition, 0f),
-                end = Offset(size.width * yellowPosition, size.height),
-                strokeWidth = 2.dp.toPx()
-            )
-
-            drawLine(
-                color = Color.White,
-                start = Offset(size.width * redPosition, 0f),
-                end = Offset(size.width * redPosition, size.height),
-                strokeWidth = 2.dp.toPx()
-            )
-
+            // Progress thumb
+            val thumbCenter = Offset(indicatorEnd, size.height / 2f)
+            val thumbRadius = (trackHeight * 0.72f).coerceAtMost(size.height / 2f)
             drawCircle(
-                color = Color.White.copy(alpha = 0.4f),
-                radius = size.height * 1.2f,
-                center = Offset(size.width * animatedProgress, size.height / 2)
+                color = palette.progressIndicator,
+                radius = thumbRadius,
+                center = thumbCenter
             )
-
             drawCircle(
-                color = progressColor,
-                radius = size.height,
-                center = Offset(size.width * animatedProgress, size.height / 2)
+                color = palette.markerBorder,
+                radius = thumbRadius,
+                center = thumbCenter,
+                style = Stroke(width = 1.5.dp.toPx())
             )
         }
 
@@ -133,33 +152,36 @@ fun TimerProgressBar(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 4.dp)
+                    .padding(top = 6.dp)
             ) {
                 Layout(
                     content = {
                         Icon(
                             painter = painterResource(R.drawable.start_24px),
-                            modifier = Modifier.size(12.dp),
+                            modifier = Modifier.size(14.dp),
                             contentDescription = null,
-                            tint = Color.White
+                            tint = palette.onBackground
                         )
 
                         Box(
                             modifier = Modifier
-                                .size(10.dp)
-                                .background(Color(0xFF00FF00), CircleShape)
+                                .size(12.dp)
+                                .background(palette.markerGreen, CircleShape)
+                                .border(1.5.dp, palette.markerBorder, CircleShape)
                         )
 
                         Box(
                             modifier = Modifier
-                                .size(10.dp)
-                                .background(Color(0xFFFFFF00), CircleShape)
+                                .size(12.dp)
+                                .background(palette.markerYellow, CircleShape)
+                                .border(1.5.dp, palette.markerBorder, CircleShape)
                         )
 
                         Box(
                             modifier = Modifier
-                                .size(10.dp)
-                                .background(Color(0xFFFF4444), CircleShape)
+                                .size(12.dp)
+                                .background(palette.markerRed, CircleShape)
+                                .border(1.5.dp, palette.markerBorder, CircleShape)
                         )
                     }
                 ) { measurables, constraints ->
@@ -180,10 +202,10 @@ fun TimerProgressBar(
                     val rX = clampedX(redPosition, rLabelWidth)
 
                     layout(constraints.maxWidth, height) {
-                        placeables[0].place(0, 0)
-                        placeables[1].place(gX, 0)
-                        placeables[2].place(yX, 0)
-                        placeables[3].place(rX, 0)
+                        placeables[0].place(0, (height - placeables[0].height) / 2)
+                        placeables[1].place(gX, (height - placeables[1].height) / 2)
+                        placeables[2].place(yX, (height - placeables[2].height) / 2)
+                        placeables[3].place(rX, (height - placeables[3].height) / 2)
                     }
                 }
             }

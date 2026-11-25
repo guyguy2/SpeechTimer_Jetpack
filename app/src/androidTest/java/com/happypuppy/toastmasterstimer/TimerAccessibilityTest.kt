@@ -70,6 +70,18 @@ class TimerAccessibilityTest {
         waitForText("Paused")
         rule.onRoot().tryPerformAccessibilityChecks()
     }
+
+    @Test
+    fun timerSpeakerMode_passesAccessibilityChecksAndCanExit() {
+        openTimer()
+        rule.onNodeWithContentDescription("Hide controls").performClick()
+        rule.waitForIdle()
+        rule.onRoot().tryPerformAccessibilityChecks()
+
+        rule.onNodeWithContentDescription("Show controls").performClick()
+        waitForText("00:00")
+        rule.onRoot().tryPerformAccessibilityChecks()
+    }
 }
 
 /** The same checks at each phase and in pure-color mode, using the stateless [TimerFace]. */
@@ -99,7 +111,8 @@ class TimerFaceAccessibilityTest {
                     innerPadding = PaddingValues(),
                     onRestart = {},
                     onToggleRunning = {},
-                    onSave = {}
+                    onSave = {},
+                    onToggleUiVisibility = {}
                 )
             }
         }

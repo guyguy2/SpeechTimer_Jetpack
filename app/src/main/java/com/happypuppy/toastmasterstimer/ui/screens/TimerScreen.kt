@@ -1,6 +1,9 @@
 package com.happypuppy.toastmasterstimer.ui.screens
 
+import android.app.Activity
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -33,11 +36,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
@@ -46,6 +51,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.findViewTreeLifecycleOwner
@@ -58,6 +64,8 @@ import com.happypuppy.toastmasterstimer.navigation.Screen
 import com.happypuppy.toastmasterstimer.navigation.TimerRoute
 import com.happypuppy.toastmasterstimer.ui.components.InputDialog
 import com.happypuppy.toastmasterstimer.ui.components.displayTitle
+import com.happypuppy.toastmasterstimer.ui.theme.LocalIsDarkTheme
+import com.happypuppy.toastmasterstimer.ui.theme.LocalPhaseColors
 import com.happypuppy.toastmasterstimer.util.formatTime
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -79,12 +87,34 @@ fun TimerScreen(
     val isUIVisible = timerState.isUiVisible
     val thresholds = timerState.thresholds
 
+    val phasePalette = LocalPhaseColors.current.paletteFor(currentPhase)
+    val defaultLightSystemBars = !LocalIsDarkTheme.current
+    val phaseLightSystemBars = phasePalette.background.luminance() > 0.5f
+
     // Keep the screen awake while the timer is actively running
     val view = LocalView.current
     DisposableEffect(view, isTimerRunning) {
         view.keepScreenOn = isTimerRunning
         onDispose {
             view.keepScreenOn = false
+        }
+    }
+
+    // Match status and navigation bar icon contrast to the active phase background and restore on exit.
+    DisposableEffect(view, phaseLightSystemBars, defaultLightSystemBars) {
+        val window = (view.context as? Activity)?.window
+        if (window != null) {
+            val controller = WindowCompat.getInsetsController(window, view)
+            controller.isAppearanceLightStatusBars = phaseLightSystemBars
+            controller.isAppearanceLightNavigationBars = phaseLightSystemBars
+        }
+        onDispose {
+            val restoreWindow = (view.context as? Activity)?.window
+            if (restoreWindow != null) {
+                val controller = WindowCompat.getInsetsController(restoreWindow, view)
+                controller.isAppearanceLightStatusBars = defaultLightSystemBars
+                controller.isAppearanceLightNavigationBars = defaultLightSystemBars
+            }
         }
     }
 
@@ -147,46 +177,58 @@ fun TimerScreen(
     // Restart resets at once; the snackbar offers Undo, which is dropped as soon as the timer moves on
     var undoJob by remember { mutableStateOf<Job?>(null) }
 
+    val topBarContentColor by animateColorAsState(
+        targetValue = phasePalette.onBackground,
+        animationSpec = tween(durationMillis = 400)
+    )
+
     Scaffold(
+        containerColor = phasePalette.background,
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
-            // The title may wrap to two lines, so the bar grows with the font scale instead of truncating.
-            val fontScale = LocalDensity.current.fontScale
-            TopAppBar(
-                expandedHeight = TopAppBarDefaults.TopAppBarExpandedHeight * maxOf(1f, fontScale),
-                title = {
-                    Text(
-                        text = title,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                },
-                navigationIcon = {
-                    IconButton(
-                        onClick = {
-                            if (ticks > 0) showLeaveDialog = true else navController.navigateUp()
-                        }
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.common_back)
+            // In speaker-facing mode (!isUIVisible) hide the TopAppBar so the full screen is
+            // uninterrupted phase color; TimerFace renders a floating exit button in safe insets.
+            if (isUIVisible) {
+                // The title may wrap to two lines, so the bar grows with the font scale instead of truncating.
+                val fontScale = LocalDensity.current.fontScale
+                TopAppBar(
+                    expandedHeight = TopAppBarDefaults.TopAppBarExpandedHeight * maxOf(1f, fontScale),
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent,
+                        navigationIconContentColor = topBarContentColor,
+                        titleContentColor = topBarContentColor,
+                        actionIconContentColor = topBarContentColor
+                    ),
+                    title = {
+                        Text(
+                            text = title,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { timerViewModel.toggleUiVisibility() }) {
-                        Icon(
-                            painter = painterResource(
-                                if (!isUIVisible) R.drawable.visibility_off_24px
-                                else R.drawable.visibility_24px
-                            ),
-                            contentDescription = stringResource(
-                                if (isUIVisible) R.string.timer_hide_controls else R.string.timer_show_controls
+                    },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = {
+                                if (ticks > 0) showLeaveDialog = true else navController.navigateUp()
+                            }
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.common_back)
                             )
-                        )
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { timerViewModel.toggleUiVisibility() }) {
+                            Icon(
+                                painter = painterResource(R.drawable.visibility_24px),
+                                contentDescription = stringResource(R.string.timer_hide_controls)
+                            )
+                        }
                     }
-                }
-            )
+                )
+            }
         }
     ) { innerPadding ->
         var showDialog by rememberSaveable { mutableStateOf(false) }
@@ -219,7 +261,8 @@ fun TimerScreen(
                 undoJob?.cancel()
                 timerViewModel.toggleRunning()
             },
-            onSave = { showDialog = true }
+            onSave = { showDialog = true },
+            onToggleUiVisibility = { timerViewModel.toggleUiVisibility() }
         )
 
         if (showLeaveDialog) {

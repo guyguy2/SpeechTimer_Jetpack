@@ -30,7 +30,6 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.happypuppy.toastmasterstimer.R
 import com.happypuppy.toastmasterstimer.model.SpeechType
@@ -102,7 +101,7 @@ fun SpeechTimePicker(navController: NavHostController) {
 
                         Text(
                             text = stringResource(R.string.custom_speech_to_connector),
-                            fontSize = 18.sp,
+                            style = MaterialTheme.typography.titleMedium,
                             modifier = Modifier.padding(horizontal = 8.dp)
                         )
 
@@ -130,7 +129,7 @@ fun SpeechTimePicker(navController: NavHostController) {
                             startMinutes,
                             endMinutes
                         ),
-                        fontSize = 16.sp,
+                        style = MaterialTheme.typography.bodyLarge,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(vertical = 16.dp)
                     )
@@ -153,7 +152,7 @@ fun SpeechTimePicker(navController: NavHostController) {
                 ) {
                     Text(
                         text = stringResource(R.string.custom_speech_start_timer),
-                        fontSize = 18.sp
+                        style = MaterialTheme.typography.titleMedium
                     )
                 }
             }
