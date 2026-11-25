@@ -7,6 +7,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.FontScale
 import androidx.compose.ui.test.WindowSize
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
@@ -66,15 +67,18 @@ class MainScreenLayoutInstrumentedTest {
         }
         rule.waitForIdle()
 
-        listOf("Table Topics", "Evaluation", "Ice Breaker", "Prepared Speech").forEach { title ->
-            rule.onNodeWithText(title).assertExists()
+        val expectedCards = listOf(
+            listOf("Table Topics", "1\u20132 min", "1:00", "1:30", "2:00"),
+            listOf("Evaluation", "2\u20133 min", "2:00", "2:30", "3:00"),
+            listOf("Ice Breaker", "4\u20136 min", "4:00", "5:00", "6:00"),
+            listOf("Prepared Speech", "5\u20137 min", "5:00", "6:00", "7:00")
+        )
+        expectedCards.forEach { cardTexts ->
+            val cardMatcher = cardTexts
+                .map { hasText(it) }
+                .reduce { acc, matcher -> acc and matcher }
+            rule.onNode(cardMatcher).assertExists()
         }
-        listOf("1\u20132 min", "2\u20133 min", "4\u20136 min", "5\u20137 min").forEach { range ->
-            rule.onNodeWithText(range).assertExists()
-        }
-        rule.onNodeWithText("1:00").assertExists()
-        rule.onNodeWithText("1:30").assertExists()
-        rule.onNodeWithText("2:00").assertExists()
         rule.onAllNodesWithText("Last Custom").assertCountEquals(0)
 
         SpeechType.presets.forEachIndexed { index, type ->

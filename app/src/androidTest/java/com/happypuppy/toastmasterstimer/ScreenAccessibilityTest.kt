@@ -1,10 +1,13 @@
 package com.happypuppy.toastmasterstimer
 
+import android.content.pm.ActivityInfo
+import android.content.res.Configuration
+import android.os.SystemClock
 import androidx.activity.ComponentActivity
-import androidx.compose.ui.test.DeviceConfigurationOverride
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.WindowSize
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.accessibility.enableAccessibilityChecks
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -15,10 +18,11 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.tryPerformAccessibilityChecks
-import androidx.compose.ui.unit.DpSize
-import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
+import androidx.test.runner.lifecycle.Stage
 import com.happypuppy.toastmasterstimer.data.database.repository.Speaker
 import com.happypuppy.toastmasterstimer.data.database.repository.SpeakerRepository
 import com.happypuppy.toastmasterstimer.data.preferences.AppTheme
@@ -28,6 +32,8 @@ import com.happypuppy.toastmasterstimer.ui.screens.SavedDataScreen
 import com.happypuppy.toastmasterstimer.ui.screens.SortOption
 import com.happypuppy.toastmasterstimer.ui.theme.SimpleSpeechTimerTheme
 import kotlinx.coroutines.runBlocking
+import org.junit.After
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -162,8 +168,8 @@ class ScreenAccessibilityTest {
 }
 
 /**
- * Adaptive wide-screen accessibility checks (ATF) using [DeviceConfigurationOverride.WindowSize]
- * inside a [ComponentActivity] host.
+ * Adaptive wide-screen accessibility checks (ATF) in real landscape orientation so Compose renders
+ * the 2-column Saved Data grid at true 1:1 physical display density without density downscaling.
  */
 @OptIn(ExperimentalTestApi::class)
 @RunWith(AndroidJUnit4::class)
@@ -205,16 +211,51 @@ class AdaptiveScreenAccessibilityTest {
         rule.enableAccessibilityChecks()
     }
 
-    @Test
-    fun savedDataWideGrid_passesAccessibilityChecks() {
-        rule.setContent {
-            DeviceConfigurationOverride(DeviceConfigurationOverride.WindowSize(DpSize(840.dp, 900.dp))) {
-                SimpleSpeechTimerTheme(themePreference = AppTheme.LIGHT, dynamicColor = false) {
-                    SavedDataScreen(navController = rememberNavController())
+    @After
+    fun restoreOrientation() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            ActivityLifecycleMonitorRegistry.getInstance()
+                .getActivitiesInStage(Stage.RESUMED)
+                .filterIsInstance<ComponentActivity>()
+                .forEach { it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED }
+        }
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+    }
+
+    private fun switchToWideLandscape() {
+        rule.activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        val deadlineMs = SystemClock.elapsedRealtime() + 10_000L
+        var isWideLandscape = false
+        while (!isWideLandscape && SystemClock.elapsedRealtime() < deadlineMs) {
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                val resumed = ActivityLifecycleMonitorRegistry.getInstance()
+                    .getActivitiesInStage(Stage.RESUMED)
+                    .firstOrNull { it is ComponentActivity }
+                if (resumed != null) {
+                    val config = resumed.resources.configuration
+                    isWideLandscape =
+                        config.orientation == Configuration.ORIENTATION_LANDSCAPE &&
+                            config.screenWidthDp >= 600
                 }
             }
+            if (!isWideLandscape) {
+                SystemClock.sleep(50L)
+            }
         }
-        rule.waitUntil(10_000) { rule.onAllNodesWithText("Ann").fetchSemanticsNodes().isNotEmpty() }
+        assertTrue("Expected landscape width >= 600dp for wide Saved Data grid", isWideLandscape)
+    }
+
+    @Test
+    fun savedDataWideGrid_passesAccessibilityChecks() {
+        switchToWideLandscape()
+        rule.setContent {
+            SimpleSpeechTimerTheme(themePreference = AppTheme.LIGHT, dynamicColor = false) {
+                SavedDataScreen(navController = rememberNavController())
+            }
+        }
+        rule.waitUntilExactlyOneExists(hasTestTag(SAVED_GRID_TAG), timeoutMillis = 10_000)
+        rule.waitUntilAtLeastOneExists(hasText("Ann"), timeoutMillis = 10_000)
         rule.waitForIdle()
         rule.onNodeWithTag(SAVED_GRID_TAG).assertExists()
         rule.onAllNodes(isRoot()).tryPerformAccessibilityChecks()
