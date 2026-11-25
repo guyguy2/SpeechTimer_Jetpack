@@ -34,6 +34,19 @@ class DataStoreManagerTest {
     }
 
     @Test
+    fun dynamicColorEnabled_roundTrips() = runBlocking {
+        val original = manager.dynamicColorEnabledFlow.first()
+        try {
+            manager.setDynamicColorEnabled(true)
+            assertEquals(true, manager.dynamicColorEnabledFlow.first())
+            manager.setDynamicColorEnabled(false)
+            assertEquals(false, manager.dynamicColorEnabledFlow.first())
+        } finally {
+            manager.setDynamicColorEnabled(original)
+        }
+    }
+
+    @Test
     fun vibrate_roundTrips() = runBlocking {
         val original = manager.vibrateEnabledFlow.first()
         try {

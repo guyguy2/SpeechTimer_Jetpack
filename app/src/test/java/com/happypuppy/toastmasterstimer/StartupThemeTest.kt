@@ -25,25 +25,34 @@ class StartupThemeTest {
     fun initiallyUnresolved() {
         val startup = StartupTheme()
         assertFalse(startup.isResolved)
-        assertNull(startup.theme.value)
+        assertNull(startup.state.value)
     }
 
     @Test
-    fun resolvesOnFirstEmission() = runTest(StandardTestDispatcher()) {
+    fun resolvesOnFirstCombinedEmission() = runTest(StandardTestDispatcher()) {
         val startup = StartupTheme()
-        val job = launch { startup.collectFrom(flowOf(AppTheme.DARK)) }
+        val job = launch {
+            startup.collectFrom(
+                themeSource = flowOf(AppTheme.DARK),
+                dynamicColorSource = flowOf(true)
+            )
+        }
         runCurrent()
 
         assertTrue(startup.isResolved)
-        assertEquals(AppTheme.DARK, startup.theme.value)
+        assertEquals(
+            StartupThemeState(theme = AppTheme.DARK, dynamicColorEnabled = true),
+            startup.state.value
+        )
         job.cancel()
     }
 
     @Test
-    fun fallsBackToSystemDefaultAfterTimeout_andLaterEmissionUpdates() = runTest(StandardTestDispatcher()) {
-        val source = MutableSharedFlow<AppTheme>()
+    fun fallsBackToDefaultsAfterTimeout_andLaterEmissionsUpdate() = runTest(StandardTestDispatcher()) {
+        val themeSource = MutableSharedFlow<AppTheme>()
+        val dynamicSource = MutableSharedFlow<Boolean>()
         val startup = StartupTheme()
-        val job = launch { startup.collectFrom(source) }
+        val job = launch { startup.collectFrom(themeSource, dynamicSource) }
 
         advanceTimeBy(StartupTheme.FIRST_READ_TIMEOUT_MS - 1L)
         runCurrent()
@@ -52,25 +61,63 @@ class StartupThemeTest {
         advanceTimeBy(1L)
         runCurrent()
         assertTrue(startup.isResolved)
-        assertEquals(AppTheme.SYSTEM_DEFAULT, startup.theme.value)
+        assertEquals(
+            StartupThemeState(theme = AppTheme.SYSTEM_DEFAULT, dynamicColorEnabled = false),
+            startup.state.value
+        )
 
-        source.emit(AppTheme.LIGHT)
+        themeSource.emit(AppTheme.LIGHT)
+        dynamicSource.emit(true)
         runCurrent()
-        assertEquals(AppTheme.LIGHT, startup.theme.value)
+        assertEquals(
+            StartupThemeState(theme = AppTheme.LIGHT, dynamicColorEnabled = true),
+            startup.state.value
+        )
         job.cancel()
     }
 
     @Test
-    fun ioExceptionMappedToDefault_resolvesWithoutWaiting() = runTest(StandardTestDispatcher()) {
+    fun stallsIfOnlyOneSourceEmits_thenFallsBackOnTimeout() = runTest(StandardTestDispatcher()) {
+        val themeSource = MutableSharedFlow<AppTheme>()
+        val dynamicSource = MutableSharedFlow<Boolean>()
         val startup = StartupTheme()
-        val failingFlow = flow<AppTheme> { throw IOException("disk error") }
-            .catch { e -> if (e is IOException) emit(AppTheme.SYSTEM_DEFAULT) else throw e }
+        val job = launch { startup.collectFrom(themeSource, dynamicSource) }
+        runCurrent()
 
-        val job = launch { startup.collectFrom(failingFlow) }
+        themeSource.emit(AppTheme.DARK)
+        runCurrent()
+        assertFalse(startup.isResolved)
+
+        advanceTimeBy(StartupTheme.FIRST_READ_TIMEOUT_MS)
+        runCurrent()
+        assertTrue(startup.isResolved)
+        assertEquals(StartupThemeState(), startup.state.value)
+
+        dynamicSource.emit(true)
+        runCurrent()
+        assertEquals(
+            StartupThemeState(theme = AppTheme.DARK, dynamicColorEnabled = true),
+            startup.state.value
+        )
+        job.cancel()
+    }
+
+    @Test
+    fun ioExceptionMappedToDefaults_resolvesWithoutWaiting() = runTest(StandardTestDispatcher()) {
+        val startup = StartupTheme()
+        val failingThemeFlow = flow<AppTheme> { throw IOException("disk error") }
+            .catch { e -> if (e is IOException) emit(AppTheme.SYSTEM_DEFAULT) else throw e }
+        val failingDynamicFlow = flow<Boolean> { throw IOException("disk error") }
+            .catch { e -> if (e is IOException) emit(false) else throw e }
+
+        val job = launch { startup.collectFrom(failingThemeFlow, failingDynamicFlow) }
         runCurrent()
 
         assertTrue(startup.isResolved)
-        assertEquals(AppTheme.SYSTEM_DEFAULT, startup.theme.value)
+        assertEquals(
+            StartupThemeState(theme = AppTheme.SYSTEM_DEFAULT, dynamicColorEnabled = false),
+            startup.state.value
+        )
         job.cancel()
     }
 }
