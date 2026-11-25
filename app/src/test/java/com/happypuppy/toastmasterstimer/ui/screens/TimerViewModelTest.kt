@@ -1,9 +1,14 @@
 package com.happypuppy.toastmasterstimer.ui.screens
 
 import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
 import com.happypuppy.toastmasterstimer.MainDispatcherRule
 import com.happypuppy.toastmasterstimer.util.TimerPhase
+import com.happypuppy.toastmasterstimer.util.TimerThresholds
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -27,8 +32,14 @@ class TimerViewModelTest {
 
     private val created = mutableListOf<TimerViewModel>()
 
-    private fun newVm(clock: () -> Long): TimerViewModel =
-        TimerViewModel(savedStateHandle = SavedStateHandle(), elapsedRealtimeMs = clock).also { created += it }
+    private fun newVm(
+        clock: () -> Long,
+        thresholds: TimerThresholds? = TimerThresholds(1, 2)
+    ): TimerViewModel = TimerViewModel(
+        savedStateHandle = SavedStateHandle(),
+        elapsedRealtimeMs = clock,
+        initialThresholds = thresholds
+    ).also { created += it }
 
     /**
      * Wraps runTest so every ViewModel created via [newVm] is reset in a finally block. Without
@@ -59,7 +70,6 @@ class TimerViewModelTest {
     @Test
     fun start_advancesMonotonicElapsedTimeAndTransitionsPhases() = runTimerTest {
         val vm = newVm({ testScheduler.currentTime })
-        vm.configure(minMinutes = 1, maxMinutes = 2)
 
         vm.start()
         assertTrue(vm.uiState.value.isRunning)
@@ -91,7 +101,6 @@ class TimerViewModelTest {
     fun pauseAndResume_preservesSubSecondProgressWithoutDrift() = runTimerTest {
         var nowMs = 0L
         val vm = newVm({ nowMs })
-        vm.configure(minMinutes = 1, maxMinutes = 2)
 
         vm.start()
         nowMs = 1_700L
@@ -127,7 +136,6 @@ class TimerViewModelTest {
     @Test
     fun phaseAlerts_fireOncePerPhaseTransitionWithoutDuplicates() = runTimerTest {
         val vm = newVm({ testScheduler.currentTime })
-        vm.configure(minMinutes = 1, maxMinutes = 2)
 
         val alerts = mutableListOf<TimerPhase>()
         val collectJob = launch(UnconfinedTestDispatcher(testScheduler)) {
@@ -147,7 +155,6 @@ class TimerViewModelTest {
     @Test
     fun reset_clearsPhaseStateSoAlertsFireAgainOnNextRun() = runTimerTest {
         val vm = newVm({ testScheduler.currentTime })
-        vm.configure(minMinutes = 1, maxMinutes = 2)
 
         val alerts = mutableListOf<TimerPhase>()
         val collectJob = launch(UnconfinedTestDispatcher(testScheduler)) {
@@ -189,7 +196,6 @@ class TimerViewModelTest {
     @Test
     fun resetWhileRunning_stopsTickingAndResetsState() = runTimerTest {
         val vm = newVm({ testScheduler.currentTime })
-        vm.configure(minMinutes = 1, maxMinutes = 2)
 
         vm.start()
         advanceTimeBy(65_000L)
@@ -206,46 +212,66 @@ class TimerViewModelTest {
     }
 
     @Test
-    fun configureWithSameThresholds_preservesRunningTimerAcrossRotation() = runTimerTest {
-        val vm = newVm({ testScheduler.currentTime })
-        vm.configure(minMinutes = 1, maxMinutes = 2)
+    fun initialThresholds_setRangeInConstructor() = runTimerTest {
+        val vm = newVm({ testScheduler.currentTime }, thresholds = TimerThresholds(5, 7))
 
-        vm.start()
-        advanceTimeBy(45_000L)
-        runCurrent()
-        assertEquals(45, vm.uiState.value.elapsedSeconds)
-
-        // Re-configuring with identical values simulates rotation/recomposition
-        vm.configure(minMinutes = 1, maxMinutes = 2)
-
-        assertTrue(vm.uiState.value.isRunning)
-        assertEquals(45, vm.uiState.value.elapsedSeconds)
-
-        vm.reset()
+        assertEquals(300, vm.uiState.value.thresholds.greenSeconds)
+        assertEquals(420, vm.uiState.value.thresholds.redSeconds)
     }
 
     @Test
-    fun configureWithDifferentThresholds_resetsTimer() = runTimerTest {
-        val vm = newVm({ testScheduler.currentTime })
-        vm.configure(minMinutes = 1, maxMinutes = 2)
+    fun injectedTicker_drivesElapsedAndCancelsOnPauseResetAndOnCleared() = runTimerTest {
+        var nowMs = 0L
+        var activeTickJob: Job? = null
+        var onTickCallback: (() -> Unit)? = null
+        val ticker = TimerTicker { _, _, onTick ->
+            onTickCallback = onTick
+            Job().also { activeTickJob = it }
+        }
+        val store = ViewModelStore()
+        val provider = ViewModelProvider(
+            store,
+            object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                    TimerViewModel(
+                        savedStateHandle = SavedStateHandle(),
+                        elapsedRealtimeMs = { nowMs },
+                        initialThresholds = TimerThresholds(1, 2),
+                        ticker = ticker
+                    ) as T
+            }
+        )
+        val vm = provider[TimerViewModel::class.java]
 
         vm.start()
-        advanceTimeBy(30_000L)
-        runCurrent()
+        assertFalse(activeTickJob!!.isCancelled)
+        nowMs = 60_000L
+        onTickCallback!!.invoke()
+        assertEquals(60, vm.uiState.value.elapsedSeconds)
+        assertEquals(TimerPhase.GREEN, vm.uiState.value.phase)
 
-        vm.configure(minMinutes = 5, maxMinutes = 7)
+        val pauseJob = checkNotNull(activeTickJob)
+        vm.pause()
+        assertTrue(pauseJob.isCancelled)
 
-        assertFalse(vm.uiState.value.isRunning)
-        assertEquals(0, vm.uiState.value.elapsedSeconds)
-        assertEquals(300, vm.uiState.value.thresholds.greenSeconds)
-        assertEquals(420, vm.uiState.value.thresholds.redSeconds)
+        vm.start()
+        val resetJob = checkNotNull(activeTickJob)
+        assertFalse(resetJob.isCancelled)
+        vm.reset()
+        assertTrue(resetJob.isCancelled)
+
+        vm.start()
+        val clearJob = checkNotNull(activeTickJob)
+        assertFalse(clearJob.isCancelled)
+        store.clear()
+        assertTrue(clearJob.isCancelled)
     }
 
     @Test
     fun syncElapsed_catchesUpAfterDozeOrBackgroundJump() = runTimerTest {
         var nowMs = 0L
         val vm = newVm({ nowMs })
-        vm.configure(minMinutes = 1, maxMinutes = 2)
 
         val alerts = mutableListOf<TimerPhase>()
         val collectJob = launch(UnconfinedTestDispatcher(testScheduler)) {
@@ -267,8 +293,7 @@ class TimerViewModelTest {
 
     @Test
     fun zeroMinuteDuration_handlesEdgeCaseAndAlertsAgainAfterReset() = runTimerTest {
-        val vm = newVm({ testScheduler.currentTime })
-        vm.configure(minMinutes = 0, maxMinutes = 0)
+        val vm = newVm({ testScheduler.currentTime }, thresholds = TimerThresholds(0, 0))
 
         val alerts = mutableListOf<TimerPhase>()
         val collectJob = launch(UnconfinedTestDispatcher(testScheduler)) {

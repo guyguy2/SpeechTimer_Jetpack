@@ -71,10 +71,6 @@ fun TimerScreen(
     viewModel: SpeechTimerViewModel = koinViewModel(),
     timerViewModel: TimerViewModel = koinViewModel()
 ) {
-    LaunchedEffect(route.minMinutes, route.maxMinutes) {
-        timerViewModel.configure(route.minMinutes, route.maxMinutes)
-    }
-
     val timerState by timerViewModel.uiState.collectAsState()
     val ticks = timerState.elapsedSeconds
     val isTimerRunning = timerState.isRunning

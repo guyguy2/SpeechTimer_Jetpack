@@ -17,8 +17,8 @@ import org.junit.Test
 
 /**
  * Wave 3: the typed timer route's arguments land in the ViewModel's [SavedStateHandle] (under the
- * route property names), and the ViewModel reads its range from there instead of waiting for the
- * screen to call `configure`. `toRoute()` cannot run on the JVM, so the keys are read directly.
+ * route property names), and the ViewModel reads its range directly in `init`. `toRoute()` cannot
+ * run on the JVM, so the keys are read directly.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class TimerViewModelRouteArgsTest {
@@ -30,8 +30,15 @@ class TimerViewModelRouteArgsTest {
 
     private val created = mutableListOf<TimerViewModel>()
 
-    private fun newVm(handle: SavedStateHandle, clock: () -> Long): TimerViewModel =
-        TimerViewModel(savedStateHandle = handle, elapsedRealtimeMs = clock).also { created += it }
+    private fun newVm(
+        handle: SavedStateHandle,
+        initialThresholds: TimerThresholds? = null,
+        clock: () -> Long
+    ): TimerViewModel = TimerViewModel(
+        savedStateHandle = handle,
+        elapsedRealtimeMs = clock,
+        initialThresholds = initialThresholds
+    ).also { created += it }
 
     /** Resets every ViewModel in a finally block so a failed assertion cannot hang the tick loop. */
     private fun runTimerTest(body: suspend TestScope.() -> Unit) = runTest(testDispatcher) {
@@ -78,21 +85,17 @@ class TimerViewModelRouteArgsTest {
     }
 
     @Test
-    fun theScreensConfigureCallWithTheSameRange_doesNotResetARunningTimer() = runTimerTest {
-        val vm = newVm(routeHandle("evaluation", 2, 3)) { testScheduler.currentTime }
-        vm.start()
-        advanceTimeBy(5_000)
-        runCurrent()
-        assertEquals(5, vm.uiState.value.elapsedSeconds)
+    fun routeArgs_winOverInitialThresholds() = runTimerTest {
+        val vm = newVm(
+            handle = routeHandle("evaluation", 2, 3),
+            initialThresholds = TimerThresholds(5, 7)
+        ) { testScheduler.currentTime }
 
-        vm.configure(2, 3)
-
-        assertEquals(5, vm.uiState.value.elapsedSeconds)
-        assertTrue(vm.uiState.value.isRunning)
+        assertEquals(TimerThresholds(2, 3), vm.uiState.value.thresholds)
     }
 
     @Test
-    fun restoredClockState_winsOverTheRouteArgs() = runTimerTest {
+    fun restoredClockState_winsOverTheRouteArgsAndInitialThresholds() = runTimerTest {
         val handle = SavedStateHandle(
             mapOf(
                 "speechTypeId" to "evaluation",
@@ -105,7 +108,7 @@ class TimerViewModelRouteArgsTest {
                 "timer_phase" to "BEFORE_GREEN"
             )
         )
-        val vm = newVm(handle) { testScheduler.currentTime }
+        val vm = newVm(handle, initialThresholds = TimerThresholds(4, 6)) { testScheduler.currentTime }
 
         assertEquals(TimerThresholds(5, 7), vm.uiState.value.thresholds)
         assertEquals(45, vm.uiState.value.elapsedSeconds)
