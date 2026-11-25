@@ -55,6 +55,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Adds the en-XA (accented, expanded) and ar-XB (mirrored) pseudolocales to debug builds only.
+            isPseudoLocalesEnabled = true
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
