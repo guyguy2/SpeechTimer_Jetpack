@@ -1,6 +1,8 @@
 package com.happypuppy.toastmasterstimer.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -10,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -18,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
@@ -27,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -39,6 +44,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -48,17 +55,22 @@ import androidx.navigation.NavHostController
 import com.happypuppy.toastmasterstimer.R
 import com.happypuppy.toastmasterstimer.data.database.repository.Speaker
 import com.happypuppy.toastmasterstimer.data.preferences.AppTheme
+import com.happypuppy.toastmasterstimer.data.preferences.DataStoreManager
 import com.happypuppy.toastmasterstimer.model.SpeechType
 import com.happypuppy.toastmasterstimer.navigation.Screen
 import com.happypuppy.toastmasterstimer.navigation.TimerRoute
+import com.happypuppy.toastmasterstimer.ui.components.CueTimingStrip
 import com.happypuppy.toastmasterstimer.ui.components.PresetCard
+import com.happypuppy.toastmasterstimer.ui.components.presetCueTimes
 import com.happypuppy.toastmasterstimer.ui.components.speakerSpeechTypeDisplayName
 import com.happypuppy.toastmasterstimer.ui.layout.ADAPTIVE_CONTENT_MAX_WIDTH
 import com.happypuppy.toastmasterstimer.ui.layout.rememberAdaptiveLayoutSpec
 import com.happypuppy.toastmasterstimer.ui.theme.LocalPhaseColors
 import com.happypuppy.toastmasterstimer.ui.theme.SimpleSpeechTimerTheme
+import com.happypuppy.toastmasterstimer.util.CustomRange
 import com.happypuppy.toastmasterstimer.util.TimerPhase
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 import java.util.Date
 
 internal const val MAX_RECENT_SPEAKERS = 3
@@ -77,6 +89,8 @@ fun MainScreen(
     viewModel: SpeechTimerViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val dataStoreManager = koinInject<DataStoreManager>()
+    val lastCustomRange by dataStoreManager.lastCustomRangeFlow.collectAsStateWithLifecycle(initialValue = null)
     val layoutSpec = rememberAdaptiveLayoutSpec()
 
     MainScreenContent(
@@ -95,7 +109,18 @@ fun MainScreen(
             }
         },
         onOpenSettings = { navController.navigate(Screen.Settings.route) },
-        modifier = modifier
+        modifier = modifier,
+        lastCustomRange = lastCustomRange,
+        onLastCustomClick = { range ->
+            navController.navigate(TimerRoute(SpeechType.CUSTOM.id, range.minMinutes, range.maxMinutes))
+        },
+        onEditLastCustomClick = {
+            navController.navigate(Screen.CustomSpeechScreen.route) {
+                popUpTo(Screen.Main.route) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
     )
 }
 
@@ -107,7 +132,10 @@ fun MainScreenContent(
     onPresetClick: (SpeechType) -> Unit,
     onOpenSavedData: () -> Unit,
     onOpenSettings: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    lastCustomRange: CustomRange? = null,
+    onLastCustomClick: (CustomRange) -> Unit = {},
+    onEditLastCustomClick: () -> Unit = {}
 ) {
     val recent = remember(speakers) { recentSpeakers(speakers) }
 
@@ -180,6 +208,14 @@ fun MainScreenContent(
                     }
                 }
 
+                if (lastCustomRange != null) {
+                    LastCustomCard(
+                        range = lastCustomRange,
+                        onLaunchClick = { onLastCustomClick(lastCustomRange) },
+                        onEditClick = onEditLastCustomClick
+                    )
+                }
+
                 if (recent.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(
@@ -207,6 +243,111 @@ fun MainScreenContent(
                 } else {
                     TimingColorGuideCard()
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LastCustomCard(
+    range: CustomRange,
+    onLaunchClick: () -> Unit,
+    onEditClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val cueTimes = remember(range.minMinutes, range.maxMinutes) {
+        presetCueTimes(range.minMinutes, range.maxMinutes)
+    }
+    val customTitle = stringResource(SpeechType.CUSTOM.labelRes)
+    val rangeLabel = stringResource(R.string.preset_duration_range, range.minMinutes, range.maxMinutes)
+    val cardDescription = stringResource(
+        R.string.main_last_custom_card_cd,
+        customTitle,
+        rangeLabel,
+        cueTimes.greenText,
+        cueTimes.yellowText,
+        cueTimes.redText
+    )
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 84.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = if (isFocused) {
+            BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+        } else {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        }
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 84.dp)
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = LocalIndication.current,
+                        onClick = onLaunchClick
+                    )
+                    .semantics { contentDescription = cardDescription }
+                    .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.main_last_custom_label),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = customTitle,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    CueTimingStrip(cueTimes = cueTimes)
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                ) {
+                    Text(
+                        text = rangeLabel,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+            }
+
+            IconButton(
+                onClick = onEditClick,
+                modifier = Modifier
+                    .padding(end = 4.dp)
+                    .size(48.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Edit,
+                    contentDescription = stringResource(R.string.main_last_custom_edit_cd),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
@@ -363,7 +504,7 @@ private fun TimingGuideRow(
 }
 
 @Composable
-private fun PhaseIndicatorIcon(
+internal fun PhaseIndicatorIcon(
     icon: PhaseIcon,
     tint: Color
 ) {
@@ -438,6 +579,21 @@ private fun MainScreenRecentDarkPreview() {
             onPresetClick = {},
             onOpenSavedData = {},
             onOpenSettings = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun MainScreenLastCustomPreview() {
+    SimpleSpeechTimerTheme(themePreference = AppTheme.LIGHT, dynamicColor = false) {
+        MainScreenContent(
+            speakers = emptyList(),
+            useTwoColumnPresets = false,
+            onPresetClick = {},
+            onOpenSavedData = {},
+            onOpenSettings = {},
+            lastCustomRange = CustomRange(3, 5)
         )
     }
 }

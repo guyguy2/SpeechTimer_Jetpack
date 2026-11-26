@@ -9,10 +9,14 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.happypuppy.toastmasterstimer.data.preferences.DataStoreManager
+import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.koin.core.context.GlobalContext
 
 /**
  * The timer app bar title may use two lines instead of truncating at large font scales (P1-5, layout
@@ -26,6 +30,11 @@ class TimerTitleFontScaleTest {
     val rule = createAndroidComposeRule<MainActivity>()
 
     private val automation get() = InstrumentationRegistry.getInstrumentation().uiAutomation
+
+    @Before
+    fun clearLastCustomRange() = runBlocking {
+        GlobalContext.get().get<DataStoreManager>().clearLastCustomRange()
+    }
 
     private fun setFontScale(scale: String) {
         automation.executeShellCommand("settings put system font_scale $scale").close()

@@ -62,6 +62,7 @@ class ScreenAccessibilityTest {
         runBlocking {
             repository.deleteAllSpeakers()
             dataStoreManager.setSavedSortOption(SortOption.DATE_NEWEST)
+            dataStoreManager.clearLastCustomRange()
         }
         rule.enableAccessibilityChecks()
     }
@@ -77,6 +78,16 @@ class ScreenAccessibilityTest {
     @Test
     fun main_passesAccessibilityChecks() {
         waitForText("Table Topics")
+        checkAllWindows()
+    }
+
+    @Test
+    fun mainWithLastCustom_passesAccessibilityChecks() {
+        runBlocking {
+            dataStoreManager.setLastCustomRange(3, 5)
+        }
+        waitForText("Last Custom")
+        waitForText("3\u20135 min")
         checkAllWindows()
     }
 

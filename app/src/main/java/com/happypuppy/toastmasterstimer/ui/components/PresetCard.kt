@@ -88,7 +88,6 @@ fun PresetCard(
         cueTimes.redText
     )
 
-    val beforeGreenPalette = LocalPhaseColors.current.beforeGreen
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
 
@@ -130,14 +129,7 @@ fun PresetCard(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    CueDotTime(color = beforeGreenPalette.markerGreen, timeText = cueTimes.greenText)
-                    CueDotTime(color = beforeGreenPalette.markerYellow, timeText = cueTimes.yellowText)
-                    CueDotTime(color = beforeGreenPalette.markerRed, timeText = cueTimes.redText)
-                }
+                CueTimingStrip(cueTimes = cueTimes)
             }
 
             Row(
@@ -166,8 +158,26 @@ fun PresetCard(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun CueDotTime(
+internal fun CueTimingStrip(
+    cueTimes: PresetCueTimes,
+    modifier: Modifier = Modifier
+) {
+    val beforeGreenPalette = LocalPhaseColors.current.beforeGreen
+    FlowRow(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        CueDotTime(color = beforeGreenPalette.markerGreen, timeText = cueTimes.greenText)
+        CueDotTime(color = beforeGreenPalette.markerYellow, timeText = cueTimes.yellowText)
+        CueDotTime(color = beforeGreenPalette.markerRed, timeText = cueTimes.redText)
+    }
+}
+
+@Composable
+internal fun CueDotTime(
     color: Color,
     timeText: String
 ) {
