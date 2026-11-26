@@ -10,6 +10,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -25,6 +26,7 @@ import com.happypuppy.toastmasterstimer.ui.layout.rememberAdaptiveLayoutSpec
 import com.happypuppy.toastmasterstimer.ui.screens.MAIN_CONTENT_COLUMN_TAG
 import com.happypuppy.toastmasterstimer.ui.screens.MainScreenContent
 import com.happypuppy.toastmasterstimer.ui.theme.SimpleSpeechTimerTheme
+import com.happypuppy.toastmasterstimer.util.CustomRange
 import com.happypuppy.toastmasterstimer.util.TimerPhase
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -226,5 +228,109 @@ class MainScreenLayoutInstrumentedTest {
             )
         }
         rule.onNodeWithText("Timing color guide").assertExists()
+    }
+
+    @Test
+    fun lastCustomCard_showsCuesAndInvokesLaunchAndEditCallbacks() {
+        val launched = mutableListOf<CustomRange>()
+        var edited = 0
+
+        rule.setContent {
+            SimpleSpeechTimerTheme(themePreference = AppTheme.LIGHT, dynamicColor = false) {
+                MainScreenContent(
+                    speakers = emptyList(),
+                    useTwoColumnPresets = false,
+                    onPresetClick = {},
+                    onOpenSavedData = {},
+                    onOpenSettings = {},
+                    lastCustomRange = CustomRange(3, 5),
+                    onLastCustomClick = { launched += it },
+                    onEditLastCustomClick = { edited++ }
+                )
+            }
+        }
+        rule.waitForIdle()
+
+        val lastCustomCardMatcher = listOf(
+            "Last Custom",
+            "Custom Speech",
+            "3\u20135 min",
+            "3:00",
+            "4:00",
+            "5:00"
+        )
+            .map { hasText(it) }
+            .reduce { acc, matcher -> acc and matcher }
+        rule.onNode(lastCustomCardMatcher).assertExists()
+        rule.onNodeWithText("Timing color guide").assertExists()
+
+        rule.onNodeWithText("Last Custom").performClick()
+        assertEquals(listOf(CustomRange(3, 5)), launched)
+
+        rule.onNodeWithContentDescription("Edit custom duration").performClick()
+        assertEquals(1, edited)
+    }
+
+    @Test
+    fun lastCustomCard_fontScale2_0_doesNotClipOrEllipsize() {
+        rule.setContent {
+            DeviceConfigurationOverride(
+                DeviceConfigurationOverride.WindowSize(DpSize(360.dp, 800.dp)) then
+                    DeviceConfigurationOverride.FontScale(2.0f)
+            ) {
+                SimpleSpeechTimerTheme(themePreference = AppTheme.LIGHT, dynamicColor = false) {
+                    MainScreenContent(
+                        speakers = emptyList(),
+                        useTwoColumnPresets = false,
+                        onPresetClick = {},
+                        onOpenSavedData = {},
+                        onOpenSettings = {},
+                        lastCustomRange = CustomRange(3, 5)
+                    )
+                }
+            }
+        }
+        rule.waitForIdle()
+
+        listOf("Last Custom", "Custom Speech", "3\u20135 min").forEach { label ->
+            val results = mutableListOf<TextLayoutResult>()
+            rule.onNodeWithText(label).fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult]
+                .action!!.invoke(results)
+            val layout = results.first()
+            assertTrue("$label clipped vertically", !layout.didOverflowHeight)
+            assertTrue(
+                "$label ellipsized at 2.0x font scale",
+                (0 until layout.lineCount).none { layout.isLineEllipsized(it) }
+            )
+        }
+    }
+
+    @Test
+    fun lastCustomCard_expandedWindow_rendersWithin840DpAndBelowPresets() {
+        var density = 1f
+        rule.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.WindowSize(DpSize(1200.dp, 800.dp))) {
+                density = LocalDensity.current.density
+                SimpleSpeechTimerTheme(themePreference = AppTheme.LIGHT, dynamicColor = false) {
+                    val spec = rememberAdaptiveLayoutSpec()
+                    MainScreenContent(
+                        speakers = emptyList(),
+                        useTwoColumnPresets = spec.useTwoColumnPresets,
+                        onPresetClick = {},
+                        onOpenSavedData = {},
+                        onOpenSettings = {},
+                        lastCustomRange = CustomRange(3, 5)
+                    )
+                }
+            }
+        }
+        rule.waitForIdle()
+
+        val speechBounds = rule.onNodeWithText("Prepared Speech").fetchSemanticsNode().boundsInRoot
+        val lastCustomBounds = rule.onNodeWithText("Last Custom").fetchSemanticsNode().boundsInRoot
+        assertTrue("Last Custom card should appear below preset cards", lastCustomBounds.top > speechBounds.bottom)
+
+        val contentWidthDp = rule.onNodeWithTag(MAIN_CONTENT_COLUMN_TAG).fetchSemanticsNode().boundsInRoot.width / density
+        assertTrue("Content width ($contentWidthDp dp) must be capped at <= 840dp", contentWidthDp <= 841f)
     }
 }

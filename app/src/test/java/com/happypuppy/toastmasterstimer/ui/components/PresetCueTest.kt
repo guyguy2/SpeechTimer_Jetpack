@@ -65,6 +65,14 @@ class PresetCueTest {
     }
 
     @Test
+    fun presetCueTimes_formatsCustomRangesAccurately() {
+        assertEquals(PresetCueTimes("3:00", "4:00", "5:00"), presetCueTimes(3, 5))
+        assertEquals(PresetCueTimes("8:00", "9:00", "10:00"), presetCueTimes(8, 10))
+        assertEquals(PresetCueTimes("1:00", "30:30", "60:00"), presetCueTimes(1, 60))
+        assertEquals(PresetCueTimes("59:00", "59:30", "60:00"), presetCueTimes(59, 60))
+    }
+
+    @Test
     fun beforeGreenMarkerTokens_meetNonTextContrastOnCardSurfaces() {
         val modes = listOf(
             Triple("light", LightColorScheme, false),

@@ -13,6 +13,9 @@ import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Plays timer cues as alarm-class output: vibration uses the ALARM usage so it is not dropped as
@@ -22,14 +25,29 @@ import android.os.VibratorManager
  */
 class AndroidAlertPlayer(private val context: Context) : AlertPlayer {
 
+    private val _isSoundPlaying = MutableStateFlow(false)
+    override val isSoundPlaying: StateFlow<Boolean> = _isSoundPlaying.asStateFlow()
+
     private var activeRingtone: Ringtone? = null
     private var focusRequest: AudioFocusRequest? = null
     private val handler = Handler(Looper.getMainLooper())
+
+    private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+        when (focusChange) {
+            AudioManager.AUDIOFOCUS_LOSS,
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                handler.post { stopSound() }
+            }
+        }
+    }
+
     private val releaseFocusWhenDone = object : Runnable {
         override fun run() {
             if (activeRingtone?.isPlaying == true) {
                 handler.postDelayed(this, FOCUS_POLL_MS)
             } else {
+                activeRingtone = null
+                _isSoundPlaying.value = false
                 abandonFocus()
             }
         }
@@ -65,36 +83,55 @@ class AndroidAlertPlayer(private val context: Context) : AlertPlayer {
 
     override fun playSound() {
         try {
-            activeRingtone?.stop()
-            handler.removeCallbacks(releaseFocusWhenDone)
+            stopSound()
             val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             val ringtone = RingtoneManager.getRingtone(context, notification)
-            activeRingtone = ringtone
-            if (ringtone != null) {
-                ringtone.audioAttributes = alarmAudioAttributes
-                requestFocus()
-                ringtone.play()
-                handler.postDelayed(releaseFocusWhenDone, FOCUS_POLL_MS)
+            if (ringtone == null) {
+                _isSoundPlaying.value = false
+                return
             }
+            ringtone.audioAttributes = alarmAudioAttributes
+            if (!requestFocus()) {
+                _isSoundPlaying.value = false
+                return
+            }
+            activeRingtone = ringtone
+            ringtone.play()
+            _isSoundPlaying.value = true
+            handler.postDelayed(releaseFocusWhenDone, FOCUS_POLL_MS)
         } catch (_: Exception) {
-            // Ignore devices without a default notification tone
+            activeRingtone = null
+            _isSoundPlaying.value = false
+            abandonFocus()
         }
     }
 
     override fun stopSound() {
         handler.removeCallbacks(releaseFocusWhenDone)
-        activeRingtone?.stop()
+        try {
+            activeRingtone?.stop()
+        } catch (_: Exception) {
+            // Ignore stop failures on already-released ringtones
+        }
         activeRingtone = null
+        _isSoundPlaying.value = false
         abandonFocus()
     }
 
-    private fun requestFocus() {
-        val audioManager = context.getSystemService(AudioManager::class.java) ?: return
+    private fun requestFocus(): Boolean {
+        val audioManager = context.getSystemService(AudioManager::class.java) ?: return false
         val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
             .setAudioAttributes(alarmAudioAttributes)
+            .setOnAudioFocusChangeListener(audioFocusChangeListener, handler)
             .build()
-        focusRequest = request
-        audioManager.requestAudioFocus(request)
+        val result = audioManager.requestAudioFocus(request)
+        return if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+            focusRequest = request
+            true
+        } else {
+            focusRequest = null
+            false
+        }
     }
 
     private fun abandonFocus() {
