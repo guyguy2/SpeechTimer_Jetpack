@@ -93,12 +93,16 @@ class CustomSpeechSemanticsTest {
     @Test
     fun holdToRepeat_stepsContinuouslyWhileHeld() {
         show()
+        rule.waitForIdle()
         rule.onNodeWithText("Speech will last between 8 and 10 minutes").assertExists()
 
         val increaseMin = rule.onNodeWithContentDescription("Increase minimum minutes")
         increaseMin.performTouchInput { down(center) }
         try {
-            rule.waitUntil(3_000) {
+            // Advance virtual time in 48ms increments (< 90ms repeat interval) so TapIndicationDelay (100ms) +
+            // initial delay (400ms) + repeats do not spin 38+ full waitForIdle() frames against a 3s clock.
+            rule.waitUntil(10_000) {
+                rule.mainClock.advanceTimeBy(48)
                 rule.onAllNodesWithText("11").fetchSemanticsNodes().isNotEmpty()
             }
         } finally {
@@ -162,7 +166,8 @@ class CustomSpeechSemanticsTest {
         val decreaseMin = rule.onNodeWithContentDescription("Decrease minimum minutes")
         decreaseMin.performTouchInput { down(center) }
         try {
-            rule.waitUntil(3_000) {
+            rule.waitUntil(10_000) {
+                rule.mainClock.advanceTimeBy(48)
                 rule.onAllNodes(
                     hasContentDescription("Decrease minimum minutes") and isNotEnabled()
                 ).fetchSemanticsNodes().isNotEmpty()
@@ -183,7 +188,8 @@ class CustomSpeechSemanticsTest {
         val decreaseMax = rule.onNodeWithContentDescription("Decrease maximum minutes")
         decreaseMax.performTouchInput { down(center) }
         try {
-            rule.waitUntil(3_000) {
+            rule.waitUntil(10_000) {
+                rule.mainClock.advanceTimeBy(48)
                 rule.onAllNodes(
                     hasContentDescription("Decrease maximum minutes") and isNotEnabled()
                 ).fetchSemanticsNodes().isNotEmpty()

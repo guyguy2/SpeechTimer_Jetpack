@@ -251,12 +251,17 @@ class MainScreenLayoutInstrumentedTest {
         }
         rule.waitForIdle()
 
-        rule.onNodeWithText("Last Custom").assertExists()
-        rule.onNodeWithText("Custom Speech").assertExists()
-        rule.onNodeWithText("3\u20135 min").assertExists()
-        rule.onNodeWithText("3:00").assertExists()
-        rule.onNodeWithText("4:00").assertExists()
-        rule.onNodeWithText("5:00").assertExists()
+        val lastCustomCardMatcher = listOf(
+            "Last Custom",
+            "Custom Speech",
+            "3\u20135 min",
+            "3:00",
+            "4:00",
+            "5:00"
+        )
+            .map { hasText(it) }
+            .reduce { acc, matcher -> acc and matcher }
+        rule.onNode(lastCustomCardMatcher).assertExists()
         rule.onNodeWithText("Timing color guide").assertExists()
 
         rule.onNodeWithText("Last Custom").performClick()
