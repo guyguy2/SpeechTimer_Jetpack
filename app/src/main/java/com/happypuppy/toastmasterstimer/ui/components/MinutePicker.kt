@@ -24,6 +24,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
@@ -61,8 +62,28 @@ fun MinutePicker(
     var didHoldIncrease by remember { mutableStateOf(false) }
     var didHoldDecrease by remember { mutableStateOf(false) }
 
+    LaunchedEffect(canIncrease) {
+        if (!canIncrease) {
+            didHoldIncrease = false
+        }
+    }
+
+    LaunchedEffect(canDecrease) {
+        if (!canDecrease) {
+            didHoldDecrease = false
+        }
+    }
+
     LaunchedEffect(isIncreasePressed) {
-        if (!isIncreasePressed) return@LaunchedEffect
+        if (!isIncreasePressed) {
+            if (didHoldIncrease) {
+                // Allow a same-release onClick to consume didHoldIncrease first,
+                // then clear it so drag-off cancellations never swallow the next TalkBack/key click.
+                withFrameNanos { }
+                didHoldIncrease = false
+            }
+            return@LaunchedEffect
+        }
         didHoldIncrease = false
         delay(HOLD_INITIAL_DELAY_MS)
         while (currentValue < currentRange.last) {
@@ -73,7 +94,13 @@ fun MinutePicker(
     }
 
     LaunchedEffect(isDecreasePressed) {
-        if (!isDecreasePressed) return@LaunchedEffect
+        if (!isDecreasePressed) {
+            if (didHoldDecrease) {
+                withFrameNanos { }
+                didHoldDecrease = false
+            }
+            return@LaunchedEffect
+        }
         didHoldDecrease = false
         delay(HOLD_INITIAL_DELAY_MS)
         while (currentValue > currentRange.first) {

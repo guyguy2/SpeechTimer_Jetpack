@@ -26,6 +26,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RangeSlider
+import androidx.compose.material3.RangeSliderState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
@@ -175,14 +176,7 @@ fun CustomSpeechScreenContent(
         trackRange = CustomSpeechRange.MIN_START_MINUTES.toFloat()..CustomSpeechRange.MAX_END_MINUTES.toFloat()
     )
     LaunchedEffect(startMinutes, endMinutes) {
-        val targetStart = startMinutes.toFloat()
-        val targetEnd = endMinutes.toFloat()
-        if (rangeSliderState.startValue != targetStart) {
-            rangeSliderState.startValue = targetStart
-        }
-        if (rangeSliderState.endValue != targetEnd) {
-            rangeSliderState.endValue = targetEnd
-        }
+        syncRangeSliderState(rangeSliderState, startMinutes, endMinutes)
     }
 
     val startThumbInteractionSource = remember { MutableInteractionSource() }
@@ -310,8 +304,7 @@ fun CustomSpeechScreenContent(
                                     } else {
                                         CustomSpeechRange.updateEnd(rawStart, rawEnd)
                                     }
-                                    rangeSliderState.startValue = clampedStart.toFloat()
-                                    rangeSliderState.endValue = clampedEnd.toFloat()
+                                    syncRangeSliderState(rangeSliderState, clampedStart, clampedEnd)
                                     onRangeChange(clampedStart, clampedEnd)
                                 },
                                 modifier = Modifier
@@ -387,6 +380,33 @@ fun CustomSpeechScreenContent(
                     }
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+internal fun syncRangeSliderState(
+    state: RangeSliderState,
+    startMinutes: Int,
+    endMinutes: Int
+) {
+    val targetStart = startMinutes.toFloat()
+    val targetEnd = endMinutes.toFloat()
+    // Material3 RangeSliderState clamps startValue <= endValue and endValue >= startValue,
+    // so upward jumps must advance endValue first while downward/overlapping moves update startValue first.
+    if (targetStart > state.endValue) {
+        if (state.endValue != targetEnd) {
+            state.endValue = targetEnd
+        }
+        if (state.startValue != targetStart) {
+            state.startValue = targetStart
+        }
+    } else {
+        if (state.startValue != targetStart) {
+            state.startValue = targetStart
+        }
+        if (state.endValue != targetEnd) {
+            state.endValue = targetEnd
         }
     }
 }

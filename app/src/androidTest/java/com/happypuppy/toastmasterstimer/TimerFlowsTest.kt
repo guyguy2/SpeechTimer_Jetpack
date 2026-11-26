@@ -418,7 +418,11 @@ class TimerFlowsTest {
         rule.waitForText("Custom Speech (20 - 30 min)")
         rule.waitForText("00:00")
 
-        // Back at 00:00 leaves straight back to Speeches Main Screen
+        // Back at 00:00 from Custom -> TimerRoute returns to CustomSpeechScreen;
+        // a second Back pops CustomSpeechScreen back to Speeches Main Screen.
+        rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
+        rule.waitForText("Speech will last between 20 and 30 minutes")
+
         rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
         rule.waitForText("Last Custom")
         rule.onNodeWithText("20\u201330 min").assertExists()
