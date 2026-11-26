@@ -46,4 +46,21 @@ class CustomSpeechRangeTest {
         assertEquals(8 to 60, CustomSpeechRange.updateEnd(currentStart = 8, newEnd = 65))
         assertEquals(8 to 15, CustomSpeechRange.updateEnd(currentStart = 8, newEnd = 15))
     }
+
+    @Test
+    fun defaultRange_isEightToTenMinutes() {
+        assertEquals(8, CustomSpeechRange.DEFAULT_MIN_MINUTES)
+        assertEquals(10, CustomSpeechRange.DEFAULT_MAX_MINUTES)
+        assertEquals(CustomRange(8, 10), CustomSpeechRange.defaultRange)
+    }
+
+    @Test
+    fun coerceRange_normalizesValidEqualInvertedAndOutOfBoundsInputs() {
+        assertEquals(CustomRange(3, 5), CustomSpeechRange.coerceRange(3, 5))
+        assertEquals(CustomRange(10, 11), CustomSpeechRange.coerceRange(10, 10))
+        assertEquals(CustomRange(15, 16), CustomSpeechRange.coerceRange(15, 10))
+        assertEquals(CustomRange(1, 2), CustomSpeechRange.coerceRange(0, 0))
+        assertEquals(CustomRange(59, 60), CustomSpeechRange.coerceRange(60, 60))
+        assertEquals(CustomRange(12, 60), CustomSpeechRange.coerceRange(12, 90))
+    }
 }

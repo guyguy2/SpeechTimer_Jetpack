@@ -5,9 +5,11 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.happypuppy.toastmasterstimer.data.preferences.AppTheme
 import com.happypuppy.toastmasterstimer.data.preferences.DataStoreManager
 import com.happypuppy.toastmasterstimer.ui.screens.SortOption
+import com.happypuppy.toastmasterstimer.util.CustomRange
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -82,6 +84,40 @@ class DataStoreManagerTest {
             }
         } finally {
             manager.setSavedSortOption(original)
+        }
+    }
+
+    @Test
+    fun keepScreenOnEnabled_roundTrips() = runBlocking {
+        val original = manager.keepScreenOnEnabledFlow.first()
+        try {
+            manager.setKeepScreenOnEnabled(false)
+            assertEquals(false, manager.keepScreenOnEnabledFlow.first())
+            manager.setKeepScreenOnEnabled(true)
+            assertEquals(true, manager.keepScreenOnEnabledFlow.first())
+        } finally {
+            manager.setKeepScreenOnEnabled(original)
+        }
+    }
+
+    @Test
+    fun lastCustomRange_roundTripsCoercesAndClears() = runBlocking {
+        val original = manager.lastCustomRangeFlow.first()
+        try {
+            manager.setLastCustomRange(3, 5)
+            assertEquals(CustomRange(3, 5), manager.lastCustomRangeFlow.first())
+
+            manager.setLastCustomRange(20, 15)
+            assertEquals(CustomRange(20, 21), manager.lastCustomRangeFlow.first())
+
+            manager.clearLastCustomRange()
+            assertNull(manager.lastCustomRangeFlow.first())
+        } finally {
+            if (original != null) {
+                manager.setLastCustomRange(original.minMinutes, original.maxMinutes)
+            } else {
+                manager.clearLastCustomRange()
+            }
         }
     }
 }
