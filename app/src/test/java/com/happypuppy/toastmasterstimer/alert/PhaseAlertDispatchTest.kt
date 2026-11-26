@@ -49,4 +49,17 @@ class PhaseAlertDispatchTest {
     fun bothDisabled_doesNothing() {
         assertEquals(emptyList<String>(), dispatch(TimerPhase.YELLOW, vibration = false, sound = false))
     }
+
+    @Test
+    fun fakeAlertPlayer_tracksIsSoundPlayingAcrossPlayAndStop() {
+        val player = FakeAlertPlayer()
+        assertEquals(false, player.isSoundPlaying.value)
+
+        player.playSound()
+        assertEquals(true, player.isSoundPlaying.value)
+
+        player.stopSound()
+        assertEquals(false, player.isSoundPlaying.value)
+        assertEquals(listOf("playSound", "stopSound"), player.calls)
+    }
 }

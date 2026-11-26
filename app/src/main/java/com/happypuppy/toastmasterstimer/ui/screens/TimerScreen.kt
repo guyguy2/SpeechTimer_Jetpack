@@ -32,7 +32,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.findViewTreeLifecycleOwner
 import androidx.navigation.NavHostController
 import com.happypuppy.toastmasterstimer.R
@@ -88,21 +88,28 @@ fun TimerScreen(
     viewModel: SpeechTimerViewModel = koinViewModel(),
     timerViewModel: TimerViewModel = koinViewModel()
 ) {
-    val timerState by timerViewModel.uiState.collectAsState()
+    val timerState by timerViewModel.uiState.collectAsStateWithLifecycle()
     val ticks = timerState.elapsedSeconds
     val isTimerRunning = timerState.isRunning
     val currentPhase = timerState.phase
     val isUIVisible = timerState.isUiVisible
     val thresholds = timerState.thresholds
 
+    val dataStoreManager = koinInject<DataStoreManager>()
+    val keepScreenOnEnabled by dataStoreManager.keepScreenOnEnabledFlow.collectAsStateWithLifecycle(initialValue = true)
+    val vibrationEnabled by dataStoreManager.vibrateEnabledFlow.collectAsStateWithLifecycle(initialValue = true)
+    val soundEnabled by dataStoreManager.soundEnabledFlow.collectAsStateWithLifecycle(initialValue = false)
+    val currentVibrationEnabled by rememberUpdatedState(vibrationEnabled)
+    val currentSoundEnabled by rememberUpdatedState(soundEnabled)
+
     val phasePalette = LocalPhaseColors.current.paletteFor(currentPhase)
     val defaultLightSystemBars = !LocalIsDarkTheme.current
     val phaseLightSystemBars = phasePalette.background.luminance() > 0.5f
 
-    // Keep the screen awake while the timer is actively running
+    // Keep the screen awake while the timer is actively running when enabled in Settings
     val view = LocalView.current
-    DisposableEffect(view, isTimerRunning) {
-        view.keepScreenOn = isTimerRunning
+    DisposableEffect(view, isTimerRunning, keepScreenOnEnabled) {
+        view.keepScreenOn = isTimerRunning && keepScreenOnEnabled
         onDispose {
             view.keepScreenOn = false
         }
@@ -134,12 +141,6 @@ fun TimerScreen(
             alertPlayer.stopSound()
         }
     }
-
-    val dataStoreManager = koinInject<DataStoreManager>()
-    val vibrationEnabled by dataStoreManager.vibrateEnabledFlow.collectAsState(initial = true)
-    val soundEnabled by dataStoreManager.soundEnabledFlow.collectAsState(initial = false)
-    val currentVibrationEnabled by rememberUpdatedState(vibrationEnabled)
-    val currentSoundEnabled by rememberUpdatedState(soundEnabled)
 
     // Collect one-shot phase-transition alerts
     LaunchedEffect(timerViewModel) {

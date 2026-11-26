@@ -51,6 +51,8 @@ class TimerFlowsTest {
     fun clearDatabase() = runBlocking {
         repository.deleteAllSpeakers()
         dataStoreManager.setSavedSortOption(SortOption.DATE_NEWEST)
+        dataStoreManager.clearLastCustomRange()
+        dataStoreManager.setKeepScreenOnEnabled(true)
     }
 
     private fun AndroidComposeTestRule<*, *>.waitForText(text: String, timeoutMs: Long = 10_000) {
@@ -397,5 +399,61 @@ class TimerFlowsTest {
         rule.waitForText("Jordan Taylor")
         rule.onAllNodesWithText("Alex Morgan").assertCountEquals(0)
         check(runBlocking { repository.getAllSpeakers().first() }.single().name == "Jordan Taylor")
+    }
+
+    @Test
+    fun customRange_persistsLastCustomCardForOneTapLaunchAndEdit() {
+        awaitMainScreen()
+        rule.onAllNodesWithText("Last Custom").assertCountEquals(0)
+
+        rule.onNodeWithText("Custom").performClick()
+        rule.waitForText("Speech will last between 8 and 10 minutes")
+        rule.onNodeWithText("20\u201330 min").performClick()
+        rule.waitForText("Speech will last between 20 and 30 minutes")
+        rule.onNodeWithText("Green 20:00").assertExists()
+        rule.onNodeWithText("Yellow 25:00").assertExists()
+        rule.onNodeWithText("Red 30:00").assertExists()
+
+        rule.onNodeWithText("Start Timer").performClick()
+        rule.waitForText("Custom Speech (20 - 30 min)")
+        rule.waitForText("00:00")
+
+        // Back at 00:00 leaves straight back to Speeches Main Screen
+        rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
+        rule.waitForText("Last Custom")
+        rule.onNodeWithText("20\u201330 min").assertExists()
+
+        // One-tap launch from Last Custom opens TimerRoute with 20 - 30 min
+        rule.onNodeWithText("Last Custom").performClick()
+        rule.waitForText("Custom Speech (20 - 30 min)")
+
+        rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
+        rule.waitForText("Last Custom")
+
+        // Edit shortcut opens CustomSpeechScreen hydrated with the saved 20..30 range
+        rule.onNodeWithContentDescription("Edit custom duration").performClick()
+        rule.waitForText("Speech will last between 20 and 30 minutes")
+    }
+
+    @Test
+    fun settings_keepScreenOnTogglePersists_andTestControlsWork() {
+        awaitMainScreen()
+        rule.onNodeWithContentDescription("Settings").performClick()
+        rule.waitForText("Keep screen on")
+
+        try {
+            check(runBlocking { dataStoreManager.keepScreenOnEnabledFlow.first() })
+            rule.onNodeWithText("Keep screen on").performClick()
+            rule.waitUntil(5_000) { !runBlocking { dataStoreManager.keepScreenOnEnabledFlow.first() } }
+
+            rule.onNodeWithText("Keep screen on").performClick()
+            rule.waitUntil(5_000) { runBlocking { dataStoreManager.keepScreenOnEnabledFlow.first() } }
+
+            rule.onNodeWithText("Test vibration").performClick()
+            rule.onNodeWithText("Test sound").performClick()
+            rule.waitForIdle()
+        } finally {
+            runBlocking { dataStoreManager.setKeepScreenOnEnabled(true) }
+        }
     }
 }

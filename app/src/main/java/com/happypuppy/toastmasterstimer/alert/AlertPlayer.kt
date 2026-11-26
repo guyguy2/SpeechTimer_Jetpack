@@ -1,6 +1,7 @@
 package com.happypuppy.toastmasterstimer.alert
 
 import com.happypuppy.toastmasterstimer.util.TimerPhase
+import kotlinx.coroutines.flow.StateFlow
 
 /** Vibration patterns the timer can request. */
 enum class AlertVibration {
@@ -19,6 +20,8 @@ enum class AlertVibration {
  * decision logic in [dispatchPhaseAlert] can be unit tested on the JVM with a fake.
  */
 interface AlertPlayer {
+    val isSoundPlaying: StateFlow<Boolean>
+
     fun vibrate(vibration: AlertVibration)
 
     /** Plays the alert sound, stopping any sound this player started earlier. */
