@@ -10,17 +10,18 @@ Fully free, offline-first, no ads, no accounts, and no internet permission requi
 
 ## Features
 
-- **Toastmasters presets** - One-tap timers for:
+- **Toastmasters presets & Last Custom** - One-tap timers for:
   - **Table Topics** (1 to 2 min)
   - **Evaluation** (2 to 3 min)
   - **Ice Breaker** (4 to 6 min)
-  - **Speech** (5 to 7 min)
-- **Custom speech durations** - Choose any start/end range from 1 to 60 minutes with automatic Green (min), Yellow (midpoint), and Red (max) thresholds.
-- **Full-screen color cues** - Smoothly animated edge-to-edge Green, Yellow, and Red phase transitions with a threshold progress bar (milestone markers and phase indicators) and a button to hide controls for unobstructed visibility.
-- **Drift-free monotonic clock** - Backed by `SystemClock.elapsedRealtime()` so pause and resume preserve sub-second accuracy, while keeping the screen awake (`keepScreenOn`) during active timing.
-- **Vibration & sound alerts** - Configurable haptic feedback (default on, with a distinct double-pulse on Red) and notification tone (default off) on each color transition.
-- **Saved speech history & sharing** - Save speaker name, speech type, duration, and date locally; sort by date, name, or speech type; share individual or full meeting timing reports via Android's share sheet.
-- **Material You & themes** - System default, Light, and Dark modes with Material 3 Dynamic Color on Android 12+.
+  - **Prepared Speech** (5 to 7 min)
+  - **Last Custom** quick-start card with one-tap launch and Edit shortcut
+- **Custom speech durations** - Choose any start/end range from 1 to 60 minutes with quick presets, a range slider, hold-to-repeat steppers, and live Green (min), Yellow (midpoint), and Red (max) signal previews.
+- **Full-screen color cues & speaker-facing mode** - Smoothly animated edge-to-edge Green, Yellow, and Red phase transitions paired with accessible phase icons/labels, a threshold progress bar with milestone markers, side-by-side landscape layout, and a hide-controls toggle for unobstructed visibility.
+- **Drift-free monotonic clock** - Backed by `SystemClock.elapsedRealtime()` so pause, resume, and process-death restore preserve sub-second accuracy, with configurable Keep Screen On (default on) during active timing.
+- **Vibration & sound alerts** - Configurable haptic feedback (default on, with a distinct double-pulse on Red) and alarm-usage sound alerts (default off) on each color transition, with built-in test/stop controls in Settings.
+- **Saved speech history & sharing** - Save speaker name, speech type, target range, elapsed duration, phase reached, and date locally; edit names, undo deletes, sort by date, name, or speech type; share individual or full meeting timing reports via Android's share sheet.
+- **Material 3 & accessibility** - Brand Light/Dark/System themes with optional Material You Dynamic Color on Android 12+, full TalkBack semantics with polite phase live regions, WCAG-verified contrast, large font scaling, and reduced-motion support.
 
 ## Privacy
 
